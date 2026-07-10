@@ -1,0 +1,196 @@
+% ----------------------------------------------------------------------
+% Homelander Trade Intelligence Report - Executive Memo Template
+% ----------------------------------------------------------------------
+\documentclass[11pt,a4paper]{article}
+
+% --- Page geometry
+\usepackage[top=1.7cm,bottom=2.2cm,left=1.8cm,right=1.8cm]{geometry}
+
+% --- Encoding & fonts
+
+% --- Tables
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{array}
+\usepackage{tabularx}
+\usepackage{ragged2e}
+
+% --- Colors
+\usepackage[table]{xcolor}
+\definecolor{brandsteel}{HTML}{2E3A43}
+\definecolor{brandcopper}{HTML}{9A5B3F}
+\definecolor{accentblue}{HTML}{2E3A43}
+\definecolor{warmpaper}{HTML}{FBF8F3}
+\definecolor{warmpanel}{HTML}{F3ECE3}
+\definecolor{linegray}{HTML}{D5CCC1}
+\definecolor{metatext}{HTML}{6D665F}
+\definecolor{riskamber}{HTML}{A5661F}
+\definecolor{riskred}{HTML}{9F3A2E}
+\definecolor{riskgreen}{HTML}{43624C}
+
+% --- Hyperlinks
+\usepackage[colorlinks=true,linkcolor=brandcopper,urlcolor=brandcopper,citecolor=brandcopper]{hyperref}
+
+% --- Graphics / Charts
+\usepackage{pgfplots}
+\usepackage{tikz}
+\usetikzlibrary{arrows,shapes,positioning}
+\pgfplotsset{compat=1.18}
+
+% --- Headers / footers
+\usepackage{fancyhdr}
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\textcolor{metatext}{\small\textsf{Homelander Trade Intelligence}}}
+\fancyhead[R]{\textcolor{metatext}{\small\textsf{ {{REPORT_SHORT_ID}} }}}
+\fancyfoot[L]{\textcolor{metatext}{\small\textsf{ {{SHIPMENT_LANE}} }}}
+\fancyfoot[C]{\textcolor{metatext}{\small\thepage}}
+\fancyfoot[R]{\textcolor{metatext}{\small\textsf{ {{GENERATED_DATE}} }}}
+\renewcommand{\headrulewidth}{0.3pt}
+\renewcommand{\footrulewidth}{0.3pt}
+
+% --- Lists
+\usepackage{enumitem}
+\setlist{nosep,leftmargin=*}
+\setlist[itemize]{label=\textcolor{brandcopper}{--}}
+
+% --- Custom commands
+\newcommand{\reportfield}[1]{\textcolor{metatext}{\small\textsf{#1}}}
+\newcommand{\accentline}{\textcolor{brandcopper}{\rule{\textwidth}{0.8pt}}}
+\newcommand{\panel}[1]{%
+  \fcolorbox{linegray}{warmpaper}{%
+    \begin{minipage}{0.965\textwidth}
+      #1
+    \end{minipage}
+  }%
+}
+\newcommand{\metriccard}[2]{%
+  \fcolorbox{linegray}{warmpanel}{%
+    \begin{minipage}[t][2.35cm][t]{0.47\textwidth}
+      {\reportfield{#1}}\\[0.4em]
+      {\Large\bfseries\color{brandsteel} #2}
+    \end{minipage}
+  }%
+}
+\newcommand{\sectionlabel}[1]{\textcolor{brandcopper}{\small\textsf{\MakeUppercase{#1}}}}
+\newcommand{\disclaimertable}{
+  \fcolorbox{linegray}{warmpanel}{
+    \begin{minipage}{0.965\textwidth}
+      {\color{riskred}\textbf{Verification note:}} This report is AI-generated decision-support. It does not constitute legal, customs, tax, or freight-booking advice. Verify all information with qualified professionals before acting.
+    \end{minipage}
+  }
+}
+
+% ----------------------------------------------------------------------
+\begin{document}
+\pagecolor{warmpaper}
+\color{brandsteel}
+
+% ===== Memo Header =====
+\thispagestyle{empty}
+{\Huge\bfseries Homelander}\\[0.2em]
+{\Large Trade Intelligence Memo}\\[0.8em]
+\accentline\\[0.9em]
+
+\panel{
+  {\sectionlabel{Shipment Lane}}\\[0.35em]
+  {\Large\bfseries {{REPORT_TITLE}}}\\[0.35em]
+  \reportfield{Lane: {{SHIPMENT_LANE}} \quad Report ID: {{REPORT_ID}} \quad Version: {{REPORT_VERSION}}}\\[0.2em]
+  \reportfield{Generated: {{GENERATED_TIMESTAMP}} \quad Data mode: {{DATA_MODE}}}
+}
+
+\vspace{0.9em}
+{{DECISION_PANEL}}
+
+\vspace{0.9em}
+{{KPI_CARDS}}
+
+\vspace{0.9em}
+{{RISK_SNAPSHOT}}
+
+\vspace{0.9em}
+\disclaimertable
+
+\newpage
+
+% ===== 1. Shipment Snapshot =====
+\section{Shipment Snapshot}
+
+{{SHIPMENT_TABLE}}
+
+\vspace{0.8em}
+\begin{minipage}[t]{0.48\textwidth}
+  \subsection*{Assumptions}
+  {{ASSUMPTIONS_LIST}}
+\end{minipage}
+\hfill
+\begin{minipage}[t]{0.48\textwidth}
+  \subsection*{Limitations}
+  \begin{itemize}
+  {{LIMITATIONS_LIST}}
+  \end{itemize}
+\end{minipage}
+
+% ===== 2. Route and Landed Cost =====
+\section{Route and Landed Cost}
+
+\subsection*{Route Comparison}
+{{ROUTE_TABLE}}
+
+\vspace{0.8em}
+{{ROUTE_CHART_SECTION}}
+
+\vspace{1em}
+\subsection*{Landed Cost}
+{{LANDED_COST_TABLE}}
+
+\vspace{0.8em}
+\subsection*{Cost Outlook}
+{{COST_FORECAST_SECTION}}
+
+% ===== 3. Risk and Delay Outlook =====
+\newpage
+\section{Risk and Delay Outlook}
+
+{{RISKS_TABLE}}
+
+\vspace{0.8em}
+{{RISK_CHART_SECTION}}
+
+% ===== 4. Tariff, Customs, and Documents =====
+\section{Tariff, Customs, and Documents}
+
+\subsection*{Tariff Summary}
+{{TARIFF_SECTION}}
+
+\vspace{0.8em}
+\subsection*{Documentation Checklist}
+{{DOCUMENTS_TABLE}}
+
+% ===== 5. Market Drivers =====
+\newpage
+\section{Market Drivers}
+
+{{DRIVER_TRENDS_SECTION}}
+
+\vspace{1em}
+\subsection*{Dependency Overview}
+{{DEPENDENCY_GRAPH_SECTION}}
+
+\vspace{1em}
+\subsection*{Port Comparison}
+{{PORT_COMPARISON_SECTION}}
+
+% ===== 6. Sources and Verification =====
+\newpage
+\section{Sources and Verification}
+
+{{SOURCES_SECTION}}
+
+\vspace{1.1em}
+\disclaimertable
+
+\vspace{0.9em}
+{{FINAL_DISCLAIMER}}
+
+\end{document}
