@@ -4,3 +4,4 @@ ngrok
 tmp/
 *.log
 package-lock.json
+data/
