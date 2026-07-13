@@ -7,3 +7,5 @@ tmp/
 package-lock.json
 data/
 output/
+dist/
+generate-history.sh

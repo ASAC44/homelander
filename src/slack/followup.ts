@@ -1,4 +1,4 @@
-import { textCompletion } from "../lib/openai.js";
+import { textCompletion, type OpenAIRequestContext } from "../lib/openai.js";
 import type { AnalysisResult, RiskCategory, RiskFactor } from "../lib/types.js";
 import type { SaveEvidenceResult } from "../report/storage.js";
 
@@ -33,13 +33,14 @@ export function isLikelyReportFollowUp(text: string): boolean {
     /\?$/,
     /^(why|how|what|which|where|when|can|could|should|does|do|is|are)\b/,
     /\b(explain|clarify|meaning|mean|break down|show me|tell me more)\b/,
-    /\b(risk|regulatory|tariff|customs|duty|route|cost|delay|report|summary|source|evidence|recommendation|action item|pdf)\b/,
+    /\b(risk|regulatory|tariff|customs|duty|route|cost|delay|report|summary|source|evidence|recommendation|action item)\b/,
   ].some((pattern) => pattern.test(t));
 }
 
 export async function answerReportFollowUp(
   question: string,
   completed: CompletedThreadReport,
+  opts?: { modelContext?: OpenAIRequestContext },
 ): Promise<string> {
   const result = completed.analysisResult;
   const category = inferRiskCategory(question);
@@ -66,9 +67,10 @@ export async function answerReportFollowUp(
       `Tariff/customs: ${result.tariff ? `HS ${result.tariff.hsCode}, total duty ${result.tariff.totalDutyPct}%, notes ${result.tariff.notes}, requirements ${result.tariff.requirements.join(", ")}` : "unavailable"}\n` +
       `Recommended actions: ${result.actionPlan.map((item) => `${item.action} (${item.why})`).join(" | ")}\n` +
       `Recommendations: ${result.recommendations.map((item) => `${item.action}: ${item.rationale}`).join(" | ")}\n` +
-      `Report links: PDF ${completed.pdfReportUrl || "not available"}, full report ${completed.reportUrl || "not available"}.\n\n` +
+      `Report links: full report ${completed.reportUrl || "not available"}.\n\n` +
       "Answer in 2-4 sentences, plain text, no markdown table.",
     fallback,
+    context: opts?.modelContext,
   });
 
   return answer || fallback;

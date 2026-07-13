@@ -1,5 +1,5 @@
 import { bdSearch } from "./brightdata.js";
-import { jsonCompletion, textCompletion } from "./openai.js";
+import { jsonCompletion, textCompletion, type OpenAIRequestContext } from "./openai.js";
 import type {
   ActionItem,
   Alert,
@@ -26,7 +26,7 @@ export interface ProductProfile {
   sources: Source[];
 }
 
-export async function productAgent(input: ShipmentInput): Promise<ProductProfile> {
+export async function productAgent(input: ShipmentInput, opts?: { modelContext?: OpenAIRequestContext }): Promise<ProductProfile> {
   const sources = await bdSearch(`${input.product} materials composition manufacturing HS code`, 4);
 
   const guess = guessMaterials(input.product);
@@ -54,6 +54,7 @@ export async function productAgent(input: ShipmentInput): Promise<ProductProfile
       `{"productCategory": string, "hsCodes": string[], "materials": [{"material": string, "pct": number}], ` +
       `"dependencies": string[]}`,
     fallback,
+    context: opts?.modelContext,
   });
 
   const total = result.materials?.reduce((a, m) => a + (m.pct || 0), 0) || 0;
@@ -79,7 +80,11 @@ export interface IntelSpec {
   focus: string;
 }
 
-export async function intelAgent(spec: IntelSpec, context: string): Promise<{ factor: RiskFactor; sources: Source[] }> {
+export async function intelAgent(
+  spec: IntelSpec,
+  context: string,
+  opts?: { modelContext?: OpenAIRequestContext },
+): Promise<{ factor: RiskFactor; sources: Source[] }> {
   const results = await Promise.all(spec.queries.map((q) => bdSearch(q, 3)));
   const sources = dedupeSources(results.flat()).slice(0, 5);
 
@@ -101,6 +106,7 @@ export async function intelAgent(spec: IntelSpec, context: string): Promise<{ fa
       `"actionable": string (one concrete, time-bound action/insight), "detail": string (2-3 sentences), ` +
       `"trend": "up"|"down"|"flat", "keyFindings": string[] (2-4 bullets)}`,
     fallback,
+    context: opts?.modelContext,
   });
 
   return {
@@ -193,7 +199,10 @@ export function buildIntelSpecs(input: ShipmentInput, profile: ProductProfile): 
   ];
 }
 
-export async function portRecommenderAgent(input: ShipmentInput): Promise<PortRecommendation | null> {
+export async function portRecommenderAgent(
+  input: ShipmentInput,
+  opts?: { modelContext?: OpenAIRequestContext },
+): Promise<PortRecommendation | null> {
   const candidates = await jsonCompletion<{ ports: string[] }>({
     system:
       "You are a maritime routing expert. Given an ocean shipment, list the realistic candidate " +
@@ -203,6 +212,7 @@ export async function portRecommenderAgent(input: ShipmentInput): Promise<PortRe
       `Origin: ${input.origin}\nIntended destination: ${input.destination}\n\n` +
       `Return JSON: {"ports": string[]} with 3-4 ports, the intended one first.`,
     fallback: { ports: [input.destination] },
+    context: opts?.modelContext,
   });
 
   const ports = (candidates.ports || []).filter(Boolean).slice(0, 4);
@@ -219,6 +229,7 @@ export async function portRecommenderAgent(input: ShipmentInput): Promise<PortRe
           `Port: ${port}\n\nFindings:\n${sources.map((x) => `- ${x.title}: ${x.snippet ?? ""}`).join("\n") || "(no fresh results)"}\n\n` +
           `Return {"congestionScore": number, "waitDays": number, "note": string (one line)}`,
         fallback: { congestionScore: 50, waitDays: 3, note: `${port}: conditions mixed.` },
+        context: opts?.modelContext,
       });
       return {
         name: port,
@@ -247,6 +258,7 @@ export async function portRecommenderAgent(input: ShipmentInput): Promise<PortRe
       best.name === intended.name
         ? `${best.name} remains the best entry port; alternatives offer no congestion advantage.`
         : `Route through ${best.name} instead of ${intended.name} — congestion is ${intended.congestionScore - best.congestionScore} points lower, saving roughly ${Math.max(0, intended.waitDays - best.waitDays)} days of port wait.`,
+    context: opts?.modelContext,
   });
 
   const options: PortOption[] = scored.map((p) => ({
@@ -260,7 +272,11 @@ export async function portRecommenderAgent(input: ShipmentInput): Promise<PortRe
   return { recommended: best.name, rationale, options };
 }
 
-export async function tariffAgent(input: ShipmentInput, profile: ProductProfile): Promise<TariffInfo | null> {
+export async function tariffAgent(
+  input: ShipmentInput,
+  profile: ProductProfile,
+  opts?: { modelContext?: OpenAIRequestContext },
+): Promise<TariffInfo | null> {
   const hs = profile.hsCodes[0] || "";
   const special = (input.specialRequirements ?? []).filter((r) => r && r !== "Standard (ambient)");
   const queries = [
@@ -311,6 +327,7 @@ export async function tariffAgent(input: ShipmentInput, profile: ProductProfile)
       `"additional":[{"name":string,"ratePct":number}],"totalDutyPct":number,` +
       `"documents":[{"name":string,"url":string}],"requirements":string[],"notes":string}`,
     fallback,
+    context: opts?.modelContext,
   });
 
   const additional = (out.additional ?? []).filter((a) => a && a.name).map((a) => ({ name: a.name, ratePct: Number(a.ratePct) || 0 }));
@@ -370,7 +387,11 @@ function hasLithiumBatteryPacking(reqs?: string[]): boolean {
   return (reqs ?? []).some((req) => /contained in equipment|packed with equipment/i.test(req));
 }
 
-export async function intake(text: string, current?: Partial<ShipmentInput>): Promise<IntakeResult> {
+export async function intake(
+  text: string,
+  current?: Partial<ShipmentInput>,
+  opts?: { modelContext?: OpenAIRequestContext },
+): Promise<IntakeResult> {
   const clean = (s: string) => (s || "").replace(/^[\s,]+|[\s,]+$/g, "");
 
   const extracted = await jsonCompletion<
@@ -388,6 +409,7 @@ export async function intake(text: string, current?: Partial<ShipmentInput>): Pr
       `"weightKg": number, "quantity": number, "containerSize": string, "pricePerKg": number, ` +
       `"shipDate": string, "shippingModeRaw": string, "specialRaw": string}`,
     fallback: { product: "", origin: "", destination: "", weightKg: 0, shipDate: "" },
+    context: opts?.modelContext,
   });
 
   const newReqs = normalizeReqs(extracted.specialRaw || "");
@@ -452,7 +474,10 @@ function rnd2(v: number, scale: number): number {
   return Math.round(v * 100) / 100;
 }
 
-export async function enrichDriverPrices(drivers: DependencyDriver[]): Promise<DependencyDriver[]> {
+export async function enrichDriverPrices(
+  drivers: DependencyDriver[],
+  opts?: { modelContext?: OpenAIRequestContext },
+): Promise<DependencyDriver[]> {
   if (!drivers.length) return drivers;
 
   const searched = await Promise.all(
@@ -481,6 +506,7 @@ export async function enrichDriverPrices(drivers: DependencyDriver[]): Promise<D
       `Items:\n${JSON.stringify(payload)}\n\n` +
       `Return JSON: {"items":[{"id":number,"currentPrice":number,"unit":string,"forecastPct":number,"forecastNote":string}]}`,
     fallback: { items: [] },
+    context: opts?.modelContext,
   });
 
   const byId = new Map((out.items ?? []).map((it) => [it.id, it]));
@@ -543,6 +569,7 @@ export async function synthesisAgent(
   profile: ProductProfile,
   factors: RiskFactor[],
   riskScore: number,
+  opts?: { modelContext?: OpenAIRequestContext },
 ): Promise<SynthesisOutput> {
   const factorSummary = factors
     .map((f) => `${f.category} (risk ${f.score}/100, ${f.trend}): ${f.label}`)
@@ -589,6 +616,7 @@ export async function synthesisAgent(
       `  "alerts": [{"severity":"high|medium|low","title":string,"impact":string}],\n` +
       `  "recommendations": [{"action":string,"rationale":string}]\n}`,
     fallback,
+    context: opts?.modelContext,
   });
 
   return {
@@ -605,6 +633,7 @@ export async function actionPlanAgent(
   input: ShipmentInput,
   factors: RiskFactor[],
   synthesis: SynthesisOutput,
+  opts?: { modelContext?: OpenAIRequestContext },
 ): Promise<ActionItem[]> {
   const fallback: ActionItem[] = factors
     .filter((f) => f.score >= 45)
@@ -633,6 +662,7 @@ export async function actionPlanAgent(
       `Return JSON: {"items":[{"action":string,"deadline":string,"dueDate":"YYYY-MM-DD"|null,` +
       `"category":string,"urgency":"high"|"medium"|"low","why":string}]}`,
     fallback: { items: fallback },
+    context: opts?.modelContext,
   });
 
   const items = plan.items?.length ? plan.items : fallback;
@@ -651,6 +681,7 @@ export async function executiveSummaryAgent(
   factors: RiskFactor[],
   riskScore: number,
   synthesis: SynthesisOutput,
+  opts?: { modelContext?: OpenAIRequestContext },
 ): Promise<string> {
   const top = [...factors].sort((a, b) => b.score - a.score).slice(0, 3);
   const fallback =
@@ -668,6 +699,7 @@ export async function executiveSummaryAgent(
       `Overall risk ${riskScore}/100. Top risks: ${top.map((f) => `${f.label} (${f.detail})`).join(" | ")}. ` +
       `Expected +${synthesis.expectedCostIncreasePct}% cost, ${synthesis.expectedDelayDays[0]}-${synthesis.expectedDelayDays[1]} day delay.`,
     fallback,
+    context: opts?.modelContext,
   });
 }
 

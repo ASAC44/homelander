@@ -1,4 +1,4 @@
-import { jsonCompletion, hasOpenAI } from "../lib/openai.js";
+import { jsonCompletion, hasOpenAIAccess, type OpenAIRequestContext } from "../lib/openai.js";
 import { classifyTargetedDoubt } from "../lib/targeted.js";
 import type { ShipmentInput } from "../lib/types.js";
 
@@ -8,6 +8,7 @@ export interface RouteContext {
   awaitingIntake?: boolean;
   input?: Partial<ShipmentInput>;
   hasLastAnalysis?: boolean;
+  hasModelAccess?: boolean;
 }
 
 export interface RouteDecision {
@@ -76,11 +77,15 @@ function deterministicRoute(text: string, context?: RouteContext): RouteDecision
   return null;
 }
 
-export async function routeMessage(text: string, context?: RouteContext): Promise<RouteDecision> {
+export async function routeMessage(
+  text: string,
+  context?: RouteContext,
+  opts?: { modelContext?: OpenAIRequestContext },
+): Promise<RouteDecision> {
   const deterministic = deterministicRoute(text, context);
   if (deterministic) return deterministic;
 
-  if (!hasOpenAI) {
+  if (!hasOpenAIAccess(opts?.modelContext) && !context?.hasModelAccess) {
     return {
       route: hasAnyShipmentContext(context) ? "question" : "analysis_request",
       confidence: 0.55,
@@ -107,6 +112,7 @@ export async function routeMessage(text: string, context?: RouteContext): Promis
       confidence: 0.5,
       reason: "classifier fallback",
     },
+    context: opts?.modelContext,
   });
 
   if (classified.route === "analysis_request" || classified.route === "question" || classified.route === "help") {

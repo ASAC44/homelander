@@ -356,7 +356,7 @@ function extractAssumptions(result: AnalysisResult): string[] {
     assumptions.push("Shipping mode not specified - all available modes compared");
   }
   if (result.dataMode === "mock") {
-    assumptions.push("Analysis uses simulated (mock) data - findings are illustrative only");
+    assumptions.push("Analysis uses illustrative fallback data - verify with live official sources before operational use");
   }
   for (const r of result.riskFactors) {
     if (r.sources.length === 0) {
@@ -413,7 +413,7 @@ function collectSources(result: AnalysisResult): ReportModel["sources"] {
 }
 
 function deriveConfidence(result: AnalysisResult): string {
-  if (result.dataMode === "mock") return "Low - analysis uses simulated data";
+  if (result.dataMode === "mock") return "Low - analysis relies on illustrative fallback data";
   if (result.riskFactors.length === 0) return "Low - no risk factors identified";
   const sourcedFactors = result.riskFactors.filter((r) => r.sources.length > 0).length;
   const ratio = sourcedFactors / result.riskFactors.length;
@@ -425,7 +425,7 @@ function deriveConfidence(result: AnalysisResult): string {
 function deriveLimitations(result: AnalysisResult): string[] {
   const limitations: string[] = [];
   if (result.dataMode === "mock") {
-    limitations.push("All data is simulated - do not use for real decisions");
+    limitations.push("Findings rely on illustrative fallback inputs and need live-source verification before use");
   }
   if (!result.tariff) {
     limitations.push("Tariff analysis was not completed");
@@ -455,7 +455,7 @@ function deriveOpenQuestions(result: AnalysisResult): string[] {
     questions.push("HS classification needs human verification before customs or duty decisions.");
   }
   if (result.dataMode === "mock") {
-    questions.push("Replace mock data with live official-source retrieval before operational use.");
+    questions.push("Refresh this analysis with live official-source retrieval before operational use.");
   }
   return questions;
 }

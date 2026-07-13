@@ -1,5 +1,5 @@
 import { bdSearch, brightDataMode } from "./brightdata.js";
-import { textCompletion } from "./openai.js";
+import { textCompletion, type OpenAIRequestContext } from "./openai.js";
 import type { AnalysisResult, ShipmentInput, Source } from "./types.js";
 
 export interface AnswerTradeQuestionInput {
@@ -106,7 +106,10 @@ export function buildFallbackTradeAnswer(input: AnswerTradeQuestionInput, source
   return answer;
 }
 
-export async function answerTradeQuestion(input: AnswerTradeQuestionInput): Promise<string> {
+export async function answerTradeQuestion(
+  input: AnswerTradeQuestionInput,
+  opts?: { modelContext?: OpenAIRequestContext },
+): Promise<string> {
   const contextInput = input.analysisContext?.input ?? input.inputContext;
   const queryParts = [
     input.question,
@@ -131,6 +134,7 @@ export async function answerTradeQuestion(input: AnswerTradeQuestionInput): Prom
       `Search mode: ${brightDataMode().toUpperCase()}\n` +
       `Sources:\n${sources.map((s) => `- ${s.title}: ${s.snippet ?? ""} (${s.url})`).join("\n")}`,
     fallback,
+    context: opts?.modelContext,
   });
 }
 

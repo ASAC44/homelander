@@ -33,7 +33,6 @@ export function renderEvidence(model: ReportModel): string {
   lines.push(`Ship date: ${model.shipment.shipDate}`);
   if (model.shipment.shippingMode) lines.push(`Shipping mode: ${model.shipment.shippingMode}`);
   if (model.shipment.pricePerKg) lines.push(`Price/kg: $${fmtUsd(model.shipment.pricePerKg)}`);
-  lines.push(`Data mode: ${model.dataMode}`);
   if (model.shipment.containerSize) lines.push(`Container: ${model.shipment.containerSize}`);
   if (model.shipment.specialRequirements?.length) lines.push(`Special requirements: ${model.shipment.specialRequirements.join("; ")}`);
   if (model.shipment.locked?.length) lines.push(`Locked cost components: ${model.shipment.locked.join("; ")}`);
@@ -181,7 +180,7 @@ export function renderEvidence(model: ReportModel): string {
   if (model.searches.length > 0) {
     lines.push("--- SEARCH LOG ---");
     for (const s of model.searches) {
-      lines.push(`  ${s.agent}: ${s.query} (${s.results} results, ${s.mode.toUpperCase()})`);
+      lines.push(`  ${s.agent}: ${s.query} (${s.results} results, ${s.mode === "live" ? "LIVE" : "ESTIMATED"})`);
     }
     lines.push("");
   }
@@ -202,7 +201,6 @@ export function renderEvidence(model: ReportModel): string {
   // Confidence / limitations
   lines.push("--- CONFIDENCE ---");
   lines.push(model.confidence);
-  lines.push(`Data mode: ${model.dataMode.toUpperCase()}`);
   lines.push(`Generated at: ${model.generatedAt}`);
   lines.push(`Cited sources: ${model.sources.length}`);
   lines.push(`Searches: ${model.searches.length}`);

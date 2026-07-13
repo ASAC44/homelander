@@ -15,9 +15,7 @@
 \usepackage{multicol}
 
 % --- Typography
-\usepackage{helvet}
-\renewcommand{\familydefault}{\sfdefault}
-\usepackage{microtype}
+\usepackage[protrusion=true,expansion=false]{microtype}
 \setlength{\parindent}{0pt}
 \setlength{\parskip}{0.42em}
 \renewcommand{\arraystretch}{1.18}
@@ -52,11 +50,11 @@
 \usepackage{fancyhdr}
 \pagestyle{fancy}
 \fancyhf{}
-\fancyhead[L]{\textcolor{metatext}{\small\textsf{Homelander Trade Intelligence}}}
-\fancyhead[R]{\textcolor{metatext}{\small\textsf{ {{REPORT_SHORT_ID}} }}}
-\fancyfoot[L]{\textcolor{metatext}{\small\textsf{ {{SHIPMENT_LANE}} }}}
+\fancyhead[L]{\textcolor{metatext}{\small Homelander Trade Intelligence}}
+\fancyhead[R]{\textcolor{metatext}{\small {{REPORT_SHORT_ID}}}}
+\fancyfoot[L]{\textcolor{metatext}{\small {{SHIPMENT_LANE}}}}
 \fancyfoot[C]{\textcolor{metatext}{\small\thepage}}
-\fancyfoot[R]{\textcolor{metatext}{\small\textsf{ {{GENERATED_DATE}} }}}
+\fancyfoot[R]{\textcolor{metatext}{\small {{GENERATED_DATE}}}}
 \renewcommand{\headrulewidth}{0.3pt}
 \renewcommand{\footrulewidth}{0.3pt}
 
@@ -75,9 +73,9 @@
 % --- Custom commands
 \setlength{\fboxsep}{7pt}
 \setlength{\fboxrule}{0.5pt}
-\newcommand{\reportfield}[1]{\textcolor{metatext}{\small\textsf{#1}}}
+\newcommand{\reportfield}[1]{\textcolor{metatext}{\small #1}}
 \newcommand{\accentline}{\textcolor{brandcopper}{\rule{\linewidth}{0.8pt}}}
-\newcommand{\sectionlabel}[1]{\textcolor{brandcopper}{\small\textsf{\MakeUppercase{#1}}}}
+\newcommand{\sectionlabel}[1]{\textcolor{brandcopper}{\small\MakeUppercase{#1}}}
 \newcommand{\panel}[1]{%
   \fcolorbox{linegray}{whitepanel}{%
     \begin{minipage}{0.965\linewidth}
@@ -135,7 +133,7 @@
   {\sectionlabel{Shipment Lane}}\\[0.25em]
   {\LARGE\bfseries {{REPORT_TITLE}}}\\[0.35em]
   \reportfield{Lane: {{SHIPMENT_LANE}} \quad Report ID: {{REPORT_ID}}}\\
-  \reportfield{Version: {{REPORT_VERSION}} \quad Generated: {{GENERATED_TIMESTAMP}} \quad Data mode: {{DATA_MODE}}}
+  \reportfield{Version: {{REPORT_VERSION}} \quad Generated: {{GENERATED_TIMESTAMP}}}
 }
 
 \vspace{0.75em}

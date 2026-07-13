@@ -3,18 +3,29 @@ import { WebClient } from "@slack/web-api";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { intake } from "../lib/agents.js";
+import {
+  deleteUserOpenAiKey,
+  extractLikelyApiKey,
+  getUserOpenAiContext,
+  hasUserOpenAiKey,
+  isByokConfigured,
+  maskApiKey,
+  parseByokCommand,
+  saveUserOpenAiKey,
+} from "../lib/byok.js";
 import { waitForMockLoopMinimum } from "../lib/mock-mode.js";
 import { runAnalysis, runTargetedDoubt } from "../lib/orchestrator.js";
 import { answerTradeQuestion } from "../lib/qa.js";
 import { classifyTargetedDoubt } from "../lib/targeted.js";
 import type { AnalysisResult, ShipmentInput } from "../lib/types.js";
+import { hasOpenAIAccess } from "../lib/openai.js";
 import { renderBlocks, renderTargetedDoubt } from "./render.js";
 import { routeMessage } from "./router.js";
 import { buildReportModel } from "../report/model.js";
 import { renderEvidence } from "../report/evidence.js";
-import { renderReportWebPage } from "../report/web.js";
 import { renderLatex } from "../report/latex.js";
 import { compileLatexReport } from "../report/pdf.js";
+import { renderReportWebPage } from "../report/web.js";
 import { saveHtmlReport, saveEvidence, initStorage } from "../report/storage.js";
 import {
   answerReportFollowUp,
@@ -38,7 +49,11 @@ interface SlackReportFile {
   filePath: string;
   fileName: string;
   title: string;
-  filetype: string;
+}
+
+interface GeneratedPdfReport {
+  file: SlackReportFile;
+  publicUrl: string | null;
 }
 
 interface ThreadConversationState {
@@ -54,6 +69,40 @@ const conversations = new Map<string, ThreadConversationState>();
 const CONVERSATION_TTL_MS = 30 * 60 * 1000;
 const completedShipments = new Map<string, { input: ShipmentInput; updatedAt: number }>();
 const COMPLETED_SHIPMENT_TTL_MS = 2 * 60 * 60 * 1000;
+
+export function shouldGuideFirstDmToByok(opts: {
+  isDm: boolean;
+  hasSavedUserKey: boolean;
+  hasConversationState: boolean;
+  hasCompletedShipment: boolean;
+  text: string;
+}): boolean {
+  if (!opts.isDm) return false;
+  if (opts.hasSavedUserKey) return false;
+  if (opts.hasConversationState || opts.hasCompletedShipment) return false;
+  if (!opts.text.trim()) return true;
+  if (parseByokCommand(opts.text)) return false;
+  return true;
+}
+
+function firstDmByokPrompt(): string {
+  return (
+    "Before we start, add your OpenAI API key in this DM.\n\n" +
+    "Send:\n" +
+    "`set api key YOUR_KEY`\n\n" +
+    "After that, send your shipment request and I’ll run the analysis.\n\n" +
+    "_Your key is accepted only in DM and is stored encrypted on the server._"
+  );
+}
+
+function orgByokRequiredPrompt(): string {
+  return (
+    "You need to connect your personal OpenAI API key before I can help here.\n\n" +
+    "DM me:\n" +
+    "`set api key YOUR_KEY`\n\n" +
+    "After that, you can come back and use me in DMs or `@mentions`."
+  );
+}
 
 export function isDuplicate(eventId: string): boolean {
   const now = Date.now();
@@ -166,9 +215,50 @@ async function uploadReportFiles(
       file: file.filePath,
       filename: file.fileName,
       title: file.title,
-      filetype: file.filetype,
     })),
   });
+}
+
+async function generatePdfReport(
+  reportModel: ReturnType<typeof buildReportModel>,
+  outputDir: string,
+  slug: string,
+  publicBaseUrl?: string,
+): Promise<GeneratedPdfReport | null> {
+  const publicReportsBaseUrl = publicBaseUrl
+    ? `${publicBaseUrl.replace(/\/$/, "")}/reports/${slug}`
+    : null;
+
+  try {
+    const texPath = path.join(outputDir, `report-${reportModel.reportId}.tex`);
+    const tex = await renderLatex(reportModel);
+    await fs.writeFile(texPath, tex, "utf-8");
+
+    const compiled = await compileLatexReport(texPath, outputDir);
+    if (compiled.success) {
+      if (env.REPORT_KEEP_TEX !== "true") {
+        await fs.unlink(texPath).catch(() => {});
+        await fs.unlink(compiled.logPath).catch(() => {});
+      }
+
+      return {
+        file: {
+          filePath: compiled.pdfPath,
+          fileName: path.basename(compiled.pdfPath),
+          title: "Formal PDF report",
+        },
+        publicUrl: publicReportsBaseUrl
+          ? `${publicReportsBaseUrl}/${path.basename(compiled.pdfPath)}`
+          : null,
+      };
+    }
+
+    console.warn("[slack] PDF report compilation failed:", compiled.error);
+  } catch (err) {
+    console.error("[slack] PDF report generation failed:", err);
+  }
+
+  return null;
 }
 
 export interface SlackEventPayload {
@@ -229,8 +319,9 @@ export async function handleEvent(
 
   // Determine if this is a DM or app mention
   const isAppMention = event.type === "app_mention";
-  const isDm = event.type === "message" && event.channel?.startsWith("D");
+  const isDm = Boolean(event.type === "message" && event.channel?.startsWith("D"));
   const isMessage = event.type === "message";
+  const userId = event.user;
 
   if (!isAppMention && !isDm && !isMessage) {
     return { status: 200, body: "ok" };
@@ -254,12 +345,110 @@ export async function handleEvent(
   const cleanText = isAppMention ? userText.replace(/<@[A-Z0-9]+>/g, "").trim() : userText;
   const stateKey = conversationKey(channel, isDm ? "dm" : threadTs);
   const threadState = getConversationState(stateKey);
+  const modelContext = userId ? await getUserOpenAiContext(userId) : undefined;
+  const hasSavedUserKey = Boolean(modelContext?.apiKey);
+  const hasCompleted = Boolean(getCompletedShipment(stateKey));
+
+  if (!isDm && extractLikelyApiKey(cleanText)) {
+    await bot.chat.postMessage({
+      channel,
+      thread_ts: threadTs,
+      text: "Do not post API keys in channels or shared threads. DM me instead with `set api key YOUR_KEY`, then rotate the exposed key immediately.",
+    });
+    return { status: 200, body: "ok" };
+  }
+
+  if (isDm && userId) {
+    const byok = parseByokCommand(cleanText);
+    if (byok) {
+      if (!isByokConfigured()) {
+        await bot.chat.postMessage({
+          channel,
+          thread_ts: threadTs,
+          text: "BYOK storage is not configured on the server yet. Set `BYOK_ENCRYPTION_SECRET` or `SLACK_SIGNING_SECRET` first.",
+        });
+        return { status: 200, body: "ok" };
+      }
+
+      if (byok.type === "help") {
+        await bot.chat.postMessage({
+          channel,
+          thread_ts: threadTs,
+          text:
+            "To use your own OpenAI key in this workspace, DM me one of these commands:\n" +
+            "- `set api key YOUR_KEY`\n" +
+            "- `api key status`\n" +
+            "- `remove api key`\n\n" +
+            "Keys are accepted only in DMs and are stored encrypted on the server.",
+        });
+        return { status: 200, body: "ok" };
+      }
+
+      if (byok.type === "status") {
+        const hasSavedKey = await hasUserOpenAiKey(userId);
+        await bot.chat.postMessage({
+          channel,
+          thread_ts: threadTs,
+          text: hasSavedKey
+            ? "Your personal OpenAI key is saved and will be used for your requests."
+            : "You do not have a personal OpenAI key saved.",
+        });
+        return { status: 200, body: "ok" };
+      }
+
+      if (byok.type === "remove") {
+        const removed = await deleteUserOpenAiKey(userId);
+        await bot.chat.postMessage({
+          channel,
+          thread_ts: threadTs,
+          text: removed
+            ? "Removed your saved OpenAI key. You will need to DM me a new key before I can help again."
+            : "No saved personal OpenAI key was found for your user.",
+        });
+        return { status: 200, body: "ok" };
+      }
+
+      await saveUserOpenAiKey(userId, byok.apiKey);
+      await bot.chat.postMessage({
+        channel,
+        thread_ts: threadTs,
+        text:
+          `Saved your OpenAI key (${maskApiKey(byok.apiKey)}). ` +
+          "I will use it for your future requests in this workspace. If this key was previously shared anywhere else, rotate it.",
+      });
+      return { status: 200, body: "ok" };
+    }
+  }
+
+  if (!hasSavedUserKey) {
+    await bot.chat.postMessage({
+      channel,
+      thread_ts: threadTs,
+      text: isDm ? firstDmByokPrompt() : orgByokRequiredPrompt(),
+    });
+    return { status: 200, body: "ok" };
+  }
+
+  if (shouldGuideFirstDmToByok({
+    isDm,
+    hasSavedUserKey,
+    hasConversationState: Boolean(threadState),
+    hasCompletedShipment: hasCompleted,
+    text: cleanText,
+  })) {
+    await bot.chat.postMessage({
+      channel,
+      thread_ts: threadTs,
+      text: firstDmByokPrompt(),
+    });
+    return { status: 200, body: "ok" };
+  }
 
   if (!cleanText) {
     await bot.chat.postMessage({
       channel,
       thread_ts: threadTs,
-      text: "Hi! Send me your shipment details and I'll analyze routes, costs, customs, and risks. E.g.: \"We need to ship 10,000 metal office chairs from Shenzhen to Los Angeles by September.\"\n\n_Homelander is decision-support, not legal/customs/tax/freight-booking advice._",
+      text: firstDmByokPrompt(),
     });
     return { status: 200, body: "ok" };
   }
@@ -268,7 +457,8 @@ export async function handleEvent(
     awaitingIntake: threadState?.awaitingIntake,
     input: threadState?.input,
     hasLastAnalysis: Boolean(threadState?.lastAnalysis || threadState?.completed),
-  });
+    hasModelAccess: hasOpenAIAccess(modelContext),
+  }, { modelContext });
 
   if (route.route === "help") {
     await bot.chat.postMessage({
@@ -291,17 +481,17 @@ export async function handleEvent(
             analysisContext.input,
             targetedRoute.kind,
             cleanText,
-            { analysisContext },
+            { analysisContext, modelContext },
           ))
         : threadState?.completed && isLikelyReportFollowUp(cleanText) && !shipmentChange
-          ? await answerReportFollowUp(cleanText, threadState.completed)
+          ? await answerReportFollowUp(cleanText, threadState.completed, { modelContext })
           : await answerTradeQuestion({
               question: cleanText,
               inputContext: analysisContext?.input
                 ?? threadState?.input
                 ?? getCompletedShipment(stateKey),
               analysisContext,
-            });
+            }, { modelContext });
       await bot.chat.postMessage({
         channel,
         thread_ts: threadTs,
@@ -327,7 +517,7 @@ export async function handleEvent(
       ? threadState.completed.analysisResult.input
       : undefined);
   try {
-    parsed = await intake(cleanText, currentInput);
+    parsed = await intake(cleanText, currentInput, { modelContext });
   } catch (err) {
     console.error("[slack] intake failed:", err);
     await bot.chat.postMessage({
@@ -364,7 +554,7 @@ export async function handleEvent(
   const mockLoopStartedAtMs = Date.now();
   let analysisResult;
   try {
-    analysisResult = await runAnalysis(parsed.input);
+    analysisResult = await runAnalysis(parsed.input, { modelContext });
     clearPendingInputState(stateKey);
     setCompletedShipment(stateKey, analysisResult.input);
   } catch (err) {
@@ -422,38 +612,20 @@ export async function handleEvent(
       filePath: saved.filePath,
       fileName: saved.fileName,
       title: "Interactive HTML report",
-      filetype: "html",
     };
     if (evidenceBaseUrl) {
       reportUrl = `${evidenceBaseUrl.replace(/\/$/, "")}/reports/${saved.slug}/${saved.fileName}`;
     }
 
-    try {
-      const tex = await renderLatex(reportModel);
-      const outputDir = path.dirname(saved.filePath);
-      const texPath = path.join(outputDir, `report-${reportModel.reportId}.tex`);
-      await fs.writeFile(texPath, tex, "utf-8");
-      const compiled = await compileLatexReport(texPath, outputDir);
-      if (compiled.success && evidenceBaseUrl) {
-        pdfReportUrl = `${evidenceBaseUrl.replace(/\/$/, "")}/reports/${saved.slug}/report-${reportModel.reportId}.pdf`;
-      }
-      if (compiled.success) {
-        pdfReportFile = {
-          filePath: compiled.pdfPath,
-          fileName: path.basename(compiled.pdfPath),
-          title: "Formal PDF report",
-          filetype: "pdf",
-        };
-      }
-      if (!compiled.success) {
-        console.warn("[slack] PDF report compilation failed:", compiled.error);
-      }
-      if (env.REPORT_KEEP_TEX !== "true") {
-        await fs.unlink(texPath).catch(() => {});
-        await fs.unlink(compiled.logPath).catch(() => {});
-      }
-    } catch (err) {
-      console.error("[slack] PDF report generation failed:", err);
+    const generatedPdf = await generatePdfReport(
+      reportModel,
+      path.dirname(saved.filePath),
+      saved.slug,
+      evidenceBaseUrl,
+    );
+    if (generatedPdf) {
+      pdfReportFile = generatedPdf.file;
+      pdfReportUrl = generatedPdf.publicUrl;
     }
   } catch (err) {
     console.error("[slack] Report webpage generation failed:", err);
@@ -471,7 +643,9 @@ export async function handleEvent(
     evidenceUrl: evidenceLink,
   });
 
-  const reportFiles = [htmlReportFile, pdfReportFile].filter((file): file is SlackReportFile => file !== null);
+  const reportFiles = [htmlReportFile, pdfReportFile].filter((file): file is SlackReportFile =>
+    file !== null
+  );
   const hasHtmlAndPdf = Boolean(htmlReportFile && pdfReportFile);
   const missingGenerationNote = [
     !htmlReportFile ? "Interactive HTML generation failed." : null,

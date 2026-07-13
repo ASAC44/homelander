@@ -168,7 +168,6 @@ function renderDataQualitySection(model: ReportModel): string {
     \\arrayrulecolor{linegray}
     \\toprule
     \\rowcolor{warmpanel}\\textbf{Overall confidence} & ${escapeLatex(model.confidence)} \\\\
-    \\textbf{Data mode} & ${model.dataMode === "live" ? "LIVE" : "MOCK"} \\\\
     \\rowcolor{warmpanel}\\textbf{Generated at} & ${escapeLatex(model.generatedAt)} \\\\
     \\textbf{Search coverage} & ${model.searches.length} searches; ${returnedSources} returned source records \\\\
     \\rowcolor{warmpanel}\\textbf{Cited source records} & ${model.sources.length} unique cited sources \\\\
@@ -596,10 +595,10 @@ function renderSearchLog(model: ReportModel): string {
   }
   const totalResults = model.searches.reduce((sum, s) => sum + s.results, 0);
   const rows = model.searches.map((s) =>
-    `${escapeLatex(s.agent)} & ${escapeLatex(s.query)} & ${s.results} & ${s.mode === "live" ? "LIVE" : "MOCK"} \\\\`,
+    `${escapeLatex(s.agent)} & ${escapeLatex(s.query)} & ${s.results} & ${s.mode === "live" ? "LIVE" : "ESTIMATED"} \\\\`,
   );
   return `\\reportfield{${model.searches.length} searches; ${totalResults} returned source records.}\\\\[0.2em]
-\\reportfield{Each row records a Bright Data search\\_engine query, the responsible agent, returned result count, and live/mock mode.}
+\\reportfield{Each row records a Bright Data search\\_engine query, the responsible agent, returned result count, and retrieval status.}
 
 \\begin{longtable}{>{\\raggedright\\arraybackslash}p{0.23\\textwidth}>{\\raggedright\\arraybackslash}p{0.52\\textwidth}cc}
     \\arrayrulecolor{linegray}
@@ -706,7 +705,6 @@ export async function renderLatex(model: ReportModel): Promise<string> {
     REPORT_ID: escapeLatex(model.reportId),
     REPORT_SHORT_ID: shortId,
     REPORT_VERSION: escapeLatex(model.version),
-    DATA_MODE: model.dataMode === "live" ? "LIVE" : "MOCK",
     GENERATED_TIMESTAMP: escapeLatex(model.generatedAt),
     GENERATED_DATE: escapeLatex(model.generatedAt.slice(0, 10)),
     SHIPMENT_LANE: `${escapeLatex(model.shipment.origin)} -> ${escapeLatex(model.shipment.destination)}`,

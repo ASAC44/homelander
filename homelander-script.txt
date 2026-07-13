@@ -1,0 +1,185 @@
+Organization: Homelander
+
+Description
+A Slack-native AI trade intelligence agent for businesses managing international shipments, imports, and cross-border logistics.
+
+Work
+We help teams turn messy shipment questions into clear, evidence-backed decisions by researching customs requirements, freight options, route tradeoffs, landed cost, documentation needs, and operational risks.
+
+Homelander [Trade Intelligence]
+
+DUTY
+> Receive shipment requests in Slack threads and ask clarifying questions when key details are missing
+> Research tariffs, customs requirements, documentation rules, route options, and freight constraints using cited sources
+> Calculate deterministic landed cost breakdowns using shipment inputs, duties, taxes, and known cost assumptions
+> Compare shipping routes across speed, cost, complexity, and risk
+> Summarize findings in a concise Slack response and generate a complete cited PDF report
+> Flag uncertainty, missing information, conflicting sources, and areas requiring human verification before action is taken
+
+DATA
+> Shipment details
+> Product descriptions
+> Origin and destination countries
+> Commercial assumptions
+> Public customs and trade sources
+> Carrier, port, and logistics references
+> Documentation requirements
+> Risk indicators and source evidence
+
+DEMO: Hey @Homelander, we need to move 2 pallets of industrial pumps from Germany to Houston. Compare air vs ocean, estimate landed cost, tell me what documents and customs risks we should expect.
+
+---------------------------------------------------------------------------------------------
+
+Scene 1 — Problem (0:00–0:35)
+Global shipping decisions are messy.
+A simple question like “what’s the best way to move this shipment?” usually means checking customs rules, freight options, tariffs, transit times, paperwork, and risk exposure across multiple sources.
+
+Most teams handle that manually.
+Operations asks freight.
+Finance asks for cost.
+Procurement asks about duties.
+Compliance asks for documents.
+And everyone waits while the answer gets rebuilt from scratch.
+
+That’s where Homelander comes in.
+
+---------------------------------------------------------------------------------------------
+
+Scene 2 — Slack Intake (0:35–0:55)
+Homelander lives directly inside Slack.
+Teams can message it in a DM or mention it in a thread with a shipment request.
+
+The request can be rough.
+Maybe it has the product, origin, destination, quantity, and target timeline.
+Maybe it is incomplete.
+Homelander starts by turning that message into a structured shipment case.
+
+---------------------------------------------------------------------------------------------
+
+Scene 3 — Clarifying Questions (0:55–1:25)
+If the request is missing something important, Homelander asks follow-up questions immediately.
+
+For example:
+What is the product value?
+What is the HS code if available?
+Is this urgent or cost-sensitive?
+Are batteries, chemicals, or restricted materials involved?
+Do we need door-to-door delivery or port-to-port only?
+
+Instead of giving a weak answer too early, it tightens the inputs first so the analysis is actually usable.
+
+---------------------------------------------------------------------------------------------
+
+Scene 4 — Research and Analysis (1:25–2:10)
+Once the shipment details are clear, Homelander begins the trade analysis.
+
+It researches:
+Customs and import requirements
+Tariffs and duties
+Documentation checklists
+Carrier and route considerations
+Port or country-specific restrictions
+Likely operational risks
+
+At the same time, it calculates the landed cost using deterministic logic.
+That means duties, taxes, freight assumptions, and cost components are handled explicitly, not guessed by the model.
+
+If a number cannot be sourced confidently, Homelander marks it as Unknown or Unavailable and explains why.
+
+---------------------------------------------------------------------------------------------
+
+Scene 5 — Route Comparison (2:10–2:45)
+Now the team can see actual options.
+
+Homelander compares routes across:
+Estimated cost
+Transit time
+Documentation burden
+Customs complexity
+Operational risk
+Confidence level
+
+So instead of just hearing “air is faster” or “ocean is cheaper,” the team gets a structured comparison with tradeoffs they can act on.
+
+---------------------------------------------------------------------------------------------
+
+Scene 6 — Evidence and Citations (2:45–3:15)
+This part matters.
+Homelander does not just give conclusions.
+It shows where the answer came from.
+
+Every analysis includes:
+Source URLs
+Retrieval timestamps
+Assumptions
+Evidence excerpts
+Confidence levels
+Open questions
+
+It also creates a supporting evidence file so users can cross-check the claims behind the final recommendation.
+
+---------------------------------------------------------------------------------------------
+
+Scene 7 — Slack Summary (3:15–3:40)
+Back in Slack, Homelander posts a concise decision summary in the same thread.
+
+Something like:
+Ocean is likely the lower-cost option.
+Air reduces lead time but materially increases landed cost.
+Import documentation will require commercial invoice, packing list, and product-specific compliance checks.
+Duty exposure is estimated at this range.
+Main risks are classification uncertainty and destination customs review.
+
+Short enough to scan.
+Detailed enough to guide a real decision.
+
+---------------------------------------------------------------------------------------------
+
+Scene 8 — PDF Report (3:40–4:10)
+For the full analysis, Homelander generates a complete versioned PDF report.
+
+That report includes:
+Shipment inputs
+Assumptions
+Route comparison
+Landed-cost breakdown
+Tariff and customs findings
+Documentation checklist
+Risk analysis
+Citations
+Retrieval timestamps
+Recommended next actions
+Human-verification disclaimer
+
+So the Slack thread gets the fast answer, and the PDF becomes the permanent record.
+
+---------------------------------------------------------------------------------------------
+
+Scene 9 — Human in the Loop (4:10–4:35)
+Homelander is built to support decisions, not fake certainty.
+
+If a shipment has unresolved classification issues, restricted product concerns, or conflicting customs guidance, it says so clearly.
+If a next step is consequential, it asks for human confirmation before any follow-up action.
+
+That makes it useful in real operations where speed matters, but accuracy and accountability matter more.
+
+---------------------------------------------------------------------------------------------
+
+Scene 10 — Example Outcome (4:35–4:55)
+A logistics manager asks:
+Hey @Homelander, compare the best import path for this machinery shipment into the US and estimate total landed cost.
+
+Homelander asks a few clarifying questions, researches the shipment, compares route options, identifies documentation needs, flags customs risks, and returns both a Slack summary and a cited PDF report.
+
+What used to take hours of fragmented work becomes one structured workflow.
+
+---------------------------------------------------------------------------------------------
+
+Scene 11 — Wrap Up (4:55–5:15)
+So that’s Homelander.
+
+A trade intelligence agent built for teams navigating cross-border shipments.
+It works where the team already works, turns incomplete shipment questions into structured analysis, grounds every answer in evidence, and helps businesses make faster, clearer, and more defensible import-export decisions.
+
+Not another generic chatbot.
+A practical AI teammate for international trade.

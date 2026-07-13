@@ -4,6 +4,12 @@ import { env } from "../config.js";
 export const MODEL = env.OPENAI_MODEL;
 export const hasOpenAI = Boolean(env.OPENAI_API_KEY);
 
+export interface OpenAIRequestContext {
+  apiKey?: string;
+  baseURL?: string;
+  model?: string;
+}
+
 const TIMEOUT_MS = 20_000;
 const DEFAULT_MAX_CONCURRENCY = env.OPENAI_BASE_URL ? 1 : 3;
 
@@ -181,13 +187,15 @@ export async function jsonCompletion<T>(opts: {
   system: string;
   user: string;
   fallback: T;
+  context?: OpenAIRequestContext;
 }): Promise<T> {
-  if (!client) return opts.fallback;
+  const selectedClient = getClient(opts.context);
+  if (!selectedClient) return opts.fallback;
   const tryFormat = async (useJsonMode: boolean): Promise<CompletionAttempt<T>> => {
     try {
       const res = await queuedChatCompletion(`jsonCompletion(json_mode=${useJsonMode})`, () =>
-        client.chat.completions.create({
-          model: MODEL,
+        selectedClient.chat.completions.create({
+          model: opts.context?.model || MODEL,
           temperature: 0.3,
           ...(useJsonMode ? { response_format: { type: "json_object" } as const } : {}),
           messages: [
@@ -204,7 +212,7 @@ export async function jsonCompletion<T>(opts: {
     }
   };
 
-  if (supportsJsonMode) {
+  if ((opts.context?.baseURL ? !opts.context.baseURL : supportsJsonMode)) {
     const result = await tryFormat(true);
     if (result.ok) return result.value as T;
     if (result.retryableExhausted) {
@@ -224,12 +232,14 @@ export async function textCompletion(opts: {
   system: string;
   user: string;
   fallback: string;
+  context?: OpenAIRequestContext;
 }): Promise<string> {
-  if (!client) return opts.fallback;
+  const selectedClient = getClient(opts.context);
+  if (!selectedClient) return opts.fallback;
   try {
     const res = await queuedChatCompletion("textCompletion", () =>
-      client.chat.completions.create({
-        model: MODEL,
+      selectedClient.chat.completions.create({
+        model: opts.context?.model || MODEL,
         temperature: 0.4,
         messages: [
           { role: "system", content: opts.system },
@@ -241,6 +251,23 @@ export async function textCompletion(opts: {
     console.warn("[openai] textCompletion failed:", err instanceof Error ? err.message : err);
     return opts.fallback;
   }
+}
+
+function getClient(context?: OpenAIRequestContext): OpenAI | null {
+  const apiKey = context?.apiKey ?? env.OPENAI_API_KEY;
+  if (!apiKey) return null;
+  const baseURL = context?.baseURL ?? env.OPENAI_BASE_URL;
+  if (!context?.apiKey && !context?.baseURL) return client;
+  return new OpenAI({
+    apiKey,
+    baseURL: baseURL || undefined,
+    timeout: TIMEOUT_MS,
+    maxRetries: 0,
+  });
+}
+
+export function hasOpenAIAccess(context?: OpenAIRequestContext): boolean {
+  return Boolean(context?.apiKey || env.OPENAI_API_KEY);
 }
 
 export const testables = {

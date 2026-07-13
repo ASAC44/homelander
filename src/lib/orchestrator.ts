@@ -14,6 +14,7 @@ import { brightDataMode, getSearchLog, resetSearchLog } from "./brightdata.js";
 import { buildDrivers } from "./drivers.js";
 import { geocode, haversineKm } from "./geo.js";
 import { buildMockAnalysis } from "./mock-analysis.js";
+import type { OpenAIRequestContext } from "./openai.js";
 import type {
   AnalysisResult,
   DependencyNode,
@@ -48,9 +49,12 @@ function weightedRiskScore(factors: RiskFactor[]): number {
   return den ? Math.round(num / den) : 50;
 }
 
-export async function runAnalysis(input: ShipmentInput): Promise<AnalysisResult> {
+export async function runAnalysis(
+  input: ShipmentInput,
+  opts?: { modelContext?: OpenAIRequestContext },
+): Promise<AnalysisResult> {
   if (env.HOMELANDER_MOCK_MODE) {
-    console.log(`[orchestrator] HOMELANDER_MOCK_MODE=true; using full mock analysis for ${input.product}`);
+    console.log(`[orchestrator] Using illustrative fallback analysis for ${input.product}`);
     return buildMockAnalysis(input);
   }
 
@@ -64,11 +68,11 @@ export async function runAnalysis(input: ShipmentInput): Promise<AnalysisResult>
   })();
 
   console.log("[orchestrator] Running Product & Material Agent...");
-  const profile = await productAgent(input);
+  const profile = await productAgent(input, { modelContext: opts?.modelContext });
   console.log(`[orchestrator] Product & Material Agent done: ${profile.productCategory}`);
 
   console.log("[orchestrator] Running Port Recommendation Agent...");
-  const portPromise = portRecommenderAgent(input)
+  const portPromise = portRecommenderAgent(input, { modelContext: opts?.modelContext })
     .then(async (pr) => {
       if (!pr) {
         console.log("[orchestrator] Port Recommendation Agent done: no alternatives found");
@@ -90,7 +94,7 @@ export async function runAnalysis(input: ShipmentInput): Promise<AnalysisResult>
     });
 
   console.log("[orchestrator] Running Tariff & Regulation Agent...");
-  const tariffPromise = tariffAgent(input, profile)
+  const tariffPromise = tariffAgent(input, profile, { modelContext: opts?.modelContext })
     .then((t) => {
       console.log(`[orchestrator] Tariff & Regulation Agent done: ${t ? `~${t.totalDutyPct}% effective duty` : "no data"}`);
       return t;
@@ -108,7 +112,7 @@ export async function runAnalysis(input: ShipmentInput): Promise<AnalysisResult>
   const factorResults = await Promise.all(
     specs.map(async (spec) => {
       try {
-        const { factor } = await intelAgent(spec, context);
+        const { factor } = await intelAgent(spec, context, { modelContext: opts?.modelContext });
         console.log(`[orchestrator] ${spec.name} done: risk ${factor.score}/100 · ${factor.label}`);
         return factor;
       } catch (err) {
@@ -122,19 +126,21 @@ export async function runAnalysis(input: ShipmentInput): Promise<AnalysisResult>
   const riskScore = weightedRiskScore(factors);
 
   console.log("[orchestrator] Running Commodity Price Agent...");
-  const driversPromise = enrichDriverPrices(buildDrivers(profile.dependencies, profile.materials, factors)).then((d) => {
+  const driversPromise = enrichDriverPrices(buildDrivers(profile.dependencies, profile.materials, factors), {
+    modelContext: opts?.modelContext,
+  }).then((d) => {
     console.log(`[orchestrator] Commodity Price Agent done: ${d.filter((x) => x.priceLive).length}/${d.length} live prices`);
     return d;
   });
 
   console.log("[orchestrator] Running Cost, Route & Alert Engine...");
-  const synthesis = await synthesisAgent(input, profile, factors, riskScore);
+  const synthesis = await synthesisAgent(input, profile, factors, riskScore, { modelContext: opts?.modelContext });
   console.log(`[orchestrator] Cost, Route & Alert Engine done: +${synthesis.expectedCostIncreasePct}% cost · ${synthesis.expectedDelayDays[0]}–${synthesis.expectedDelayDays[1]}d delay`);
 
   console.log("[orchestrator] Running Executive Summary Agent & Action Plan Agent...");
   const [executiveSummary, actionPlan] = await Promise.all([
-    executiveSummaryAgent(input, factors, riskScore, synthesis),
-    actionPlanAgent(input, factors, synthesis),
+    executiveSummaryAgent(input, factors, riskScore, synthesis, { modelContext: opts?.modelContext }),
+    actionPlanAgent(input, factors, synthesis, { modelContext: opts?.modelContext }),
   ]);
   console.log(`[orchestrator] Executive Summary done · Action Plan: ${actionPlan.length} prioritized actions`);
 
@@ -214,12 +220,14 @@ export async function runTargetedDoubt(
   input: ShipmentInput,
   kind: TargetedDoubtKind,
   question: string,
-  opts?: { analysisContext?: AnalysisResult },
+  opts?: { analysisContext?: AnalysisResult; modelContext?: OpenAIRequestContext },
 ): Promise<TargetedDoubtResult> {
   console.log(`[orchestrator] Running targeted ${kind} doubt for ${input.product}`);
   resetSearchLog();
 
-  const profile = opts?.analysisContext ? profileFromAnalysis(opts.analysisContext) : await productAgent(input);
+  const profile = opts?.analysisContext
+    ? profileFromAnalysis(opts.analysisContext)
+    : await productAgent(input, { modelContext: opts?.modelContext });
   const context =
     `${input.product} (${profile.productCategory}), ${input.weightKg}kg, ` +
     `${input.origin} -> ${input.destination}, ship date ${input.shipDate}. ` +
@@ -227,7 +235,7 @@ export async function runTargetedDoubt(
 
   if (kind === "tariff") {
     console.log("[orchestrator] Running targeted Tariff & Regulation Agent...");
-    const tariff = await tariffAgent(input, profile);
+    const tariff = await tariffAgent(input, profile, { modelContext: opts?.modelContext });
     if (tariff && input.pricePerKg && input.weightKg) {
       tariff.goodsValueUsd = Math.round(input.pricePerKg * input.weightKg);
       tariff.estimatedDutyUsd = Math.round((tariff.goodsValueUsd * tariff.totalDutyPct) / 100);
@@ -250,7 +258,7 @@ export async function runTargetedDoubt(
 
   if (kind === "port") {
     console.log("[orchestrator] Running targeted Port Recommendation Agent...");
-    const recommendation = await portRecommenderAgent(input);
+    const recommendation = await portRecommenderAgent(input, { modelContext: opts?.modelContext });
     const options = recommendation?.options ?? [];
     const best = options.find((o) => o.recommended) ?? options[0];
     return buildTargetedResult(input, kind, "Port Recommendation Agent", {
@@ -273,7 +281,7 @@ export async function runTargetedDoubt(
   }
 
   console.log(`[orchestrator] Running targeted ${spec.name}...`);
-  const { factor } = await intelAgent(spec, context);
+  const { factor } = await intelAgent(spec, context, { modelContext: opts?.modelContext });
   return buildTargetedResult(input, kind, spec.name, {
     headline: `${factor.label} · risk ${factor.score}/100`,
     detail: factor.detail,

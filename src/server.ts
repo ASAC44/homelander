@@ -43,9 +43,9 @@ const server = serve({ fetch: app.fetch, port: env.PORT }, async (info) => {
   }
 
   if (!env.OPENAI_API_KEY) console.warn("[server] OPENAI_API_KEY not set — using fallback/heuristic data");
-  if (!env.BRIGHTDATA_API_TOKEN) console.warn("[server] BRIGHTDATA_API_TOKEN not set — using mock search data");
+  if (!env.BRIGHTDATA_API_TOKEN) console.warn("[server] BRIGHTDATA_API_TOKEN not set — using illustrative fallback search data");
   if (env.HOMELANDER_MOCK_MODE) {
-    console.warn(`[server] HOMELANDER_MOCK_MODE enabled — analysis/report loop forced to mock data with ${env.HOMELANDER_MOCK_MIN_DURATION_MS}ms minimum duration`);
+    console.warn(`[server] Illustrative fallback analysis enabled with ${env.HOMELANDER_MOCK_MIN_DURATION_MS}ms minimum duration`);
   }
   if (!env.SLACK_BOT_TOKEN) console.warn("[server] SLACK_BOT_TOKEN not set — Slack bot disabled");
   if (!env.SLACK_SIGNING_SECRET) console.warn("[server] SLACK_SIGNING_SECRET not set — Slack verification disabled");

@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import crypto from "node:crypto";
 import test from "node:test";
 import { renderBlocks } from "../src/slack/render.js";
+import { shouldGuideFirstDmToByok } from "../src/slack/events.js";
 import { verifySlackRequest } from "../src/slack/verify.js";
 import { getEvidence, initStorage, saveEvidence, slugify } from "../src/report/storage.js";
 import type { AnalysisResult } from "../src/lib/types.js";
@@ -136,5 +137,40 @@ test("Slack summary rendering does not reorder analysis risk factors in place", 
   assert.deepEqual(
     result.riskFactors.map((risk) => risk.label),
     ["Low weather risk", "High freight risk"],
+  );
+});
+
+test("first DM without saved BYOK key is routed to API-key guidance", () => {
+  assert.equal(
+    shouldGuideFirstDmToByok({
+      isDm: true,
+      hasSavedUserKey: false,
+      hasConversationState: false,
+      hasCompletedShipment: false,
+      text: "analyze chairs from Shenzhen to LA",
+    }),
+    true,
+  );
+
+  assert.equal(
+    shouldGuideFirstDmToByok({
+      isDm: true,
+      hasSavedUserKey: false,
+      hasConversationState: false,
+      hasCompletedShipment: false,
+      text: "set api key sk-test-1234567890",
+    }),
+    false,
+  );
+
+  assert.equal(
+    shouldGuideFirstDmToByok({
+      isDm: true,
+      hasSavedUserKey: true,
+      hasConversationState: false,
+      hasCompletedShipment: false,
+      text: "analyze chairs from Shenzhen to LA",
+    }),
+    false,
   );
 });

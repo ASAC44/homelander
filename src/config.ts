@@ -21,6 +21,8 @@ const envSchema = z.object({
   SLACK_BOT_TOKEN: z.string().optional(),
   SLACK_SIGNING_SECRET: z.string().optional(),
   OPENAI_API_KEY: z.string().optional(),
+  BYOK_ENCRYPTION_SECRET: z.string().optional(),
+  OPENAI_KEY_STORAGE_DIR: z.string().default("./data/byok"),
   OPENAI_MODEL: z.string().default("gpt-4o-mini"),
   OPENAI_BASE_URL: z.string().optional(),
   OPENAI_REASONING_EFFORT: z.enum(["none", "low", "medium", "high", "xhigh"]).default("low"),

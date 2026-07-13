@@ -76,10 +76,10 @@ export function buildMockAnalysis(input: ShipmentInput): AnalysisResult {
     recommendations,
     actionPlan,
     executiveSummary:
-      `Mock analysis flags ${topRiskLabels(riskFactors)} as the main constraints for ` +
+      `This analysis flags ${topRiskLabels(riskFactors)} as the main constraints for ` +
       `${input.product} moving ${input.origin} to ${input.destination}. Expect roughly ` +
       `+${expectedCostIncreasePct}% landed-cost pressure and ${expectedDelayDays[0]}-${expectedDelayDays[1]} days of schedule buffer. ` +
-      "Use this run only to demo workflow, report structure, and decision flow.",
+      "Use this run as an illustrative planning draft and verify key figures before acting.",
     news,
     geo: null,
     tariff,
@@ -180,32 +180,32 @@ function buildMockSources(
 ): Record<RiskCategory, Source[]> {
   return {
     commodity: [
-      mockSource("Mock commodity price monitor", "commodity", `${profile.materials[0]?.material ?? "input"} costs show moderate short-term pressure in the synthetic demo feed.`),
-      mockSource("Mock materials procurement brief", "materials", `${profile.productCategory} depends on ${profile.dependencies.slice(0, 3).join(", ")}.`),
+      mockSource("Illustrative commodity price monitor", "commodity", `${profile.materials[0]?.material ?? "input"} costs show moderate short-term pressure in the illustrative feed.`),
+      mockSource("Illustrative materials procurement brief", "materials", `${profile.productCategory} depends on ${profile.dependencies.slice(0, 3).join(", ")}.`),
     ],
     freight: [
-      mockSource("Mock ocean freight index", "freight", `${input.origin} to ${input.destination} spot capacity is modeled as tightening into the requested ship window.`),
-      mockSource("Mock carrier capacity bulletin", "carrier", "Blank-sailing and equipment assumptions add cost pressure in this simulated run."),
+      mockSource("Illustrative ocean freight index", "freight", `${input.origin} to ${input.destination} spot capacity is modeled as tightening into the requested ship window.`),
+      mockSource("Illustrative carrier capacity bulletin", "carrier", "Blank-sailing and equipment assumptions add cost pressure in this simulated run."),
     ],
     port: [
-      mockSource("Mock port dwell dashboard", "port", `${input.destination} is modeled with elevated terminal dwell and gate appointment pressure.`),
-      mockSource("Mock vessel queue sample", "queue", "Synthetic vessel queue observations support a modest schedule buffer."),
+      mockSource("Illustrative port dwell dashboard", "port", `${input.destination} is modeled with elevated terminal dwell and gate appointment pressure.`),
+      mockSource("Illustrative vessel queue sample", "queue", "Synthetic vessel queue observations support a modest schedule buffer."),
     ],
     weather: [
-      mockSource("Mock seasonal weather outlook", "weather", "Seasonal storm exposure is included as a route-timing risk in the demo model."),
-      mockSource("Mock marine disruption watch", "marine", "The route carries periodic weather disruption assumptions for planning purposes."),
+      mockSource("Illustrative seasonal weather outlook", "weather", "Seasonal storm exposure is included as a route-timing risk in the demo model."),
+      mockSource("Illustrative marine disruption watch", "marine", "The route carries periodic weather disruption assumptions for planning purposes."),
     ],
     geopolitical: [
-      mockSource("Mock trade policy watch", "policy", `${input.origin} to ${input.destination} is checked for tariff and trade-policy exposure in mock mode.`),
-      mockSource("Mock route disruption note", "geopolitical", "Synthetic geopolitical disruption assumptions are included for workflow testing."),
+      mockSource("Illustrative trade policy watch", "policy", `${input.origin} to ${input.destination} is checked for tariff and trade-policy exposure in this planning run.`),
+      mockSource("Illustrative route disruption note", "geopolitical", "Synthetic geopolitical disruption assumptions are included for workflow testing."),
     ],
     supplier: [
-      mockSource("Mock supplier health index", "supplier", `${input.origin} supplier conditions are modeled as stable but sensitive to policy and freight changes.`),
-      mockSource("Mock manufacturing PMI sample", "pmi", "Demo manufacturing indicators show mixed export-order momentum."),
+      mockSource("Illustrative supplier health index", "supplier", `${input.origin} supplier conditions are modeled as stable but sensitive to policy and freight changes.`),
+      mockSource("Illustrative manufacturing PMI sample", "pmi", "Demo manufacturing indicators show mixed export-order momentum."),
     ],
     regulatory: [
-      mockSource("Mock customs tariff table", "tariff", `Illustrative HS candidates for ${profile.productCategory}: ${profile.hsCodes.join(", ")}.`),
-      mockSource("Mock import documentation checklist", "documents", "Commercial invoice, packing list, bill of lading, origin evidence, and product-specific documents are modeled."),
+      mockSource("Illustrative customs tariff table", "tariff", `Illustrative HS candidates for ${profile.productCategory}: ${profile.hsCodes.join(", ")}.`),
+      mockSource("Illustrative import documentation checklist", "documents", "Commercial invoice, packing list, bill of lading, origin evidence, and product-specific documents are modeled."),
     ],
   };
 }
@@ -233,7 +233,7 @@ function buildRiskFactors(
     commodity: {
       label: "Input costs firming",
       actionable: "Lock supplier pricing before booking if the quote is valid for less than 30 days.",
-      detail: `${profile.materials[0]?.material ?? "Primary input"} exposure is material to landed cost in this mock run.`,
+      detail: `${profile.materials[0]?.material ?? "Primary input"} exposure is material to landed cost in this planning run.`,
     },
     freight: {
       label: "Freight capacity pressure",
@@ -341,7 +341,7 @@ function buildTariff(
     ],
     goodsValueUsd,
     estimatedDutyUsd,
-    notes: "Mock-mode customs figures are illustrative only; verify classification, duty rate, and documentation with a licensed broker.",
+    notes: "Customs figures are illustrative only; verify classification, duty rate, and documentation with a licensed broker.",
     sources,
   };
 }
@@ -367,7 +367,7 @@ function withDriverSources(
   ];
   return drivers.map((driver, index) => ({
     ...driver,
-    forecastNote: driver.forecastNote || "Synthetic mock-mode forecast for workflow testing.",
+    forecastNote: driver.forecastNote || "Synthetic forecast for workflow testing.",
     sources: [sourcePool[index % sourcePool.length]].filter(Boolean),
   }));
 }
@@ -393,8 +393,8 @@ function buildRecommendations(
   const top = [...risks].sort((a, b) => b.score - a.score).slice(0, 2);
   const route = routes.find((item) => item.recommended) ?? routes[0];
   return [
-    { action: `Use ${route.method} with buffer`, rationale: `Mock run recommends ${route.transitDays} transit days plus risk buffer for ${input.destination}.` },
-    { action: "Verify customs inputs", rationale: "Mock tariff and document outputs are illustrative and need broker confirmation." },
+    { action: `Use ${route.method} with buffer`, rationale: `This planning run recommends ${route.transitDays} transit days plus risk buffer for ${input.destination}.` },
+    { action: "Verify customs inputs", rationale: "Tariff and document outputs are illustrative and need broker confirmation." },
     ...top.map((risk) => ({ action: risk.actionable, rationale: risk.detail })),
   ].slice(0, 5);
 }
@@ -411,7 +411,7 @@ function buildPortRecommendation(input: ShipmentInput, routes: RouteOption[], so
       waitDays,
       freightCost: Math.round((baseRoute?.cost ?? 3000) * (1 + index * 0.08 + congestionScore / 700)),
       recommended: index === 1,
-      note: index === 1 ? "Mock alternate with lower modeled dwell." : "Mock port option for comparison.",
+      note: index === 1 ? "Alternate with lower modeled dwell." : "Illustrative port option for comparison.",
       lat: null,
       lng: null,
       sources,
@@ -420,7 +420,7 @@ function buildPortRecommendation(input: ShipmentInput, routes: RouteOption[], so
   const recommended = options.find((option) => option.recommended) ?? options[0];
   return {
     recommended: recommended.name,
-    rationale: `Mock mode prefers ${recommended.name} because modeled dwell is lower than the intended destination option.`,
+    rationale: `${recommended.name} is preferred because modeled dwell is lower than the intended destination option.`,
     options,
   };
 }
@@ -449,8 +449,8 @@ function buildSearchRecords(
 
 function mockSource(title: string, slug: string, snippet: string): Source {
   return {
-    title: `${title} (mock-mode synthetic source)`,
-    url: `https://mock.homelander.local/${encodeURIComponent(slug)}`,
+    title,
+    url: `https://demo.homelander.local/${encodeURIComponent(slug)}`,
     snippet,
   };
 }

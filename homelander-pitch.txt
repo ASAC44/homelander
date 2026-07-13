@@ -1,0 +1,17 @@
+Homelander is an AI trade intelligence teammate built for companies that move goods across borders and need answers fast.
+
+Instead of forcing operations, procurement, or finance teams to piece together customs rules, freight options, tariff risks, and landed cost estimates by hand, Homelander does the research inside Slack. A user can drop a shipment request into a thread, and Homelander turns it into a structured analysis: clarifies missing details, compares route options, estimates landed cost, flags customs and documentation requirements, surfaces risks, and returns a concise decision summary with a full cited PDF report.
+
+What makes Homelander valuable is that it is not just a chatbot giving vague logistics advice. It is designed to produce usable trade decisions. Every answer is grounded in sources, timestamps, assumptions, and evidence. It distinguishes facts from estimates, calls out what is still unknown, and keeps financial calculations deterministic instead of hallucinated. When the stakes are high, it helps the team move faster without pretending to replace human judgment.
+
+The workflow is simple. A team member messages Homelander in Slack with a shipment scenario. Homelander asks clarifying questions if needed, researches the relevant trade and logistics landscape, calculates landed cost, summarizes the best options, and delivers a permanent versioned PDF report for review and sharing. If a next step is consequential, Homelander keeps a human in the loop.
+
+This is especially useful for teams dealing with international sourcing, imports, exports, distributor operations, or supply chain planning, where the real bottleneck is not just finding information, but turning scattered regulations, freight inputs, and documentation requirements into one clear recommendation.
+
+Homelander helps teams answer questions like:
+What is the cheapest and lowest-risk way to ship this product from origin to destination?
+What customs duties, taxes, and import requirements should we expect?
+Which route is faster, cheaper, or more reliable under current constraints?
+What documents are required, and what are the biggest compliance risks before we move?
+
+In short, Homelander gives business teams a reliable way to turn messy cross-border shipment questions into structured, evidence-backed decisions directly inside the tools they already use. It reduces research time, improves visibility, and makes trade analysis faster, clearer, and more defensible.

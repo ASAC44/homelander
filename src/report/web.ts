@@ -668,7 +668,6 @@ function reportHeader(model: ReportModel): string {
       <div><dt>Report ID</dt><dd>${esc(model.reportId)}</dd></div>
       <div><dt>Version</dt><dd>${esc(model.version)}</dd></div>
       <div><dt>Generated</dt><dd>${esc(model.generatedAt)}</dd></div>
-      <div><dt>Data mode</dt><dd>${esc(model.dataMode.toUpperCase())}</dd></div>
       <div><dt>Confidence</dt><dd>${esc(model.confidence)}</dd></div>
     </dl>
   </header>`;

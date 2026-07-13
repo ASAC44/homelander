@@ -32,7 +32,7 @@ export function renderBlocks(result: AnalysisResult, opts?: RenderOptions): stri
       (r) => `• *${r.label}* (risk ${r.score}/100): ${r.actionable}`,
     ),
     "",
-    `*Sources checked:* ${result.searches.length}. Data mode: ${result.dataMode === "live" ? "LIVE" : "MOCK"}.`,
+    `*Sources checked:* ${result.searches.length}.`,
   ];
 
   if (opts?.reportUrl) {
@@ -81,7 +81,7 @@ export function renderTargetedDoubt(result: TargetedDoubtResult): string {
     sourceLines.length ? "*Top sources checked:*" : "",
     ...sourceLines,
     "",
-    `*Searches checked:* ${searchNote}. Data mode: ${result.dataMode === "live" ? "LIVE" : "MOCK"}.`,
+    `*Searches checked:* ${searchNote}.`,
     "",
     "_This is decision-support, not legal/customs/tax/freight-booking advice._",
   ];

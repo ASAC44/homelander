@@ -99,11 +99,109 @@ npm run dev
 
 To connect Slack, create an app, subscribe it to direct messages and `app_mention` events, add the required credentials to `.env`, and send a DM to Homelander or mention `@Homelander`.
 
-## Project status
+| Variable | Required | Default | Description |
+|---|---|---|---|
+| `PORT` | No | 3000 | HTTP server port |
+| `HOMELANDER_MOCK_MODE` | No | false | Force the analysis/report loop to use complete synthetic mock data, even when API keys are configured |
+| `HOMELANDER_MOCK_MIN_DURATION_MS` | No | 60000 | Minimum elapsed time for forced mock analysis/report responses |
+| `SLACK_BOT_TOKEN` | No | — | Slack bot token |
+| `SLACK_SIGNING_SECRET` | No | — | Slack signing secret |
+| `OPENAI_API_KEY` | No | — | Any OpenAI-compatible API key |
+| `BYOK_ENCRYPTION_SECRET` | No | falls back to `SLACK_SIGNING_SECRET` | Secret used to encrypt user-supplied OpenAI keys at rest |
+| `OPENAI_KEY_STORAGE_DIR` | No | `./data/byok` | Local storage directory for encrypted user OpenAI keys |
+| `OPENAI_MODEL` | No | gpt-4o-mini | Model name |
+| `OPENAI_BASE_URL` | No | — | Any OpenAI-compatible endpoint |
+| `OPENAI_MAX_CONCURRENCY` | No | 1 custom / 3 OpenAI | Maximum concurrent model requests |
+| `OPENAI_MAX_RETRIES` | No | 3 | Retry attempts for rate limits and transient provider errors |
+| `OPENAI_RETRY_BASE_MS` | No | 750 | Initial retry backoff in milliseconds |
+| `OPENAI_RETRY_MAX_MS` | No | 8000 | Maximum computed retry backoff in milliseconds |
+| `OPENAI_RATE_LIMIT_COOLDOWN_MS` | No | 60000 | Maximum delay honored for provider retry/cooldown signals |
+| `BRIGHTDATA_API_TOKEN` | No | — | Bright Data API token |
+| `BRIGHTDATA_PRO_MODE` | No | false | Bright Data pro mode |
 
 Homelander is an MVP and hackathon prototype. The core analysis flow, Slack interaction, research modules, calculation logic, evidence artifacts, interactive report, formal PDF report, and report follow-ups are implemented in this repository.
 
-The next steps are stronger source validation, broader official trade data coverage, production storage, and more end-to-end testing with real Slack interactions.
+## Routes
+
+| Method | Path | Description |
+|---|---|---|
+| `GET` | `/health` | Health check |
+| `POST` | `/analyze` | Direct analysis (JSON body) |
+| `POST` | `/slack/events` | Slack Events API webhook |
+
+## Usage
+
+### Direct API
+
+```bash
+curl -X POST http://localhost:3000/analyze \
+  -H "Content-Type: application/json" \
+  -d '{"product":"Metal office chairs","origin":"Shenzhen","destination":"Los Angeles","weightKg":20000,"quantity":10000,"shipDate":"September 2026","shippingMode":"Ocean (container)","pricePerKg":35}'
+```
+
+### Slack
+
+1. Create a Slack app at api.slack.com
+2. Enable Events API with `POST /slack/events` as the Request URL
+3. Subscribe to `message.im` and `app_mention` events
+4. Set `SLACK_BOT_TOKEN` and `SLACK_SIGNING_SECRET` in `.env`
+5. Install the app to your workspace
+6. DM `@Homelander` or mention `@Homelander` in a channel
+
+### Slack BYOK
+
+Users can provide their own OpenAI key in a DM. Supported commands:
+
+- `set api key YOUR_KEY`
+- `api key status`
+- `remove api key`
+
+Behavior:
+
+- Keys are accepted only in Slack DMs.
+- Keys are stored encrypted on the server.
+- If a user has a saved key, that key is used for their requests.
+- If no personal key is saved, the app falls back to the workspace `OPENAI_API_KEY` if configured.
+- If a key is posted in a channel, the bot warns the user to rotate it and resend via DM.
+
+## Docker
+
+```bash
+docker compose up --build
+```
+
+## Project structure
+
+```
+src/
+  config.ts           # Zod-validated environment
+  server.ts           # Hono HTTP server
+  lib/
+    types.ts          # Domain types
+    openai.ts         # OpenAI wrapper
+    brightdata.ts     # Bright Data MCP adapter + mock fallback
+    agents.ts         # Intelligence agents
+    orchestrator.ts   # Analysis pipeline
+    drivers.ts        # Commodity price drivers
+    geo.ts            # Geocoding
+    utils.ts          # Risk labels, formatting
+  slack/
+    verify.ts         # Slack signature verification
+    events.ts         # Slack event handler
+    render.ts         # Slack message formatter
+  routes/
+    health.ts
+    analyze.ts
+    slack-events.ts
+docs/                 # Product documentation
+AGENTS.md             # Agent rules and conventions
+```
+
+## Data modes
+
+- **LIVE** — Real web searches + LLM analysis (requires API keys)
+- **MOCK fallback** — Heuristic fallbacks, realistic but not current (no API keys needed)
+- **Forced mock loop** — `HOMELANDER_MOCK_MODE=true` bypasses live providers for shipment analysis and returns a complete synthetic report with mock evidence/source labels. Slack intake still collects shipment details, then the final summary waits until at least `HOMELANDER_MOCK_MIN_DURATION_MS` has elapsed so demos do not complete instantly.
 
 ## License
 

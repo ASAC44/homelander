@@ -45,7 +45,7 @@ async function getClient(): Promise<Client | null> {
       await client.connect(transport);
       return client;
     } catch (err) {
-      console.error("[brightdata] MCP connect failed, using mock fallback:", err);
+      console.error("[brightdata] MCP connect failed, using illustrative fallback data:", err);
       return null;
     }
   })();

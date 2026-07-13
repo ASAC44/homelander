@@ -20,49 +20,78 @@ export async function compileLatexReport(
 
   await fs.mkdir(outputDir, { recursive: true });
 
-  const compiler = env.LATEX_COMPILER;
-  const args =
-    compiler === "latexmk"
-      ? [
-          "-pdf",
-          "-interaction=nonstopmode",
-          "-halt-on-error",
-          `-outdir=${outputDir}`,
-          texPath,
-        ]
-      : ["--outdir", outputDir, texPath];
+  const texVarDir = path.join(outputDir, ".texmf-var");
+  const varTexFontsDir = path.join(outputDir, ".texfonts");
+  const attempts = env.LATEX_COMPILER === "latexmk"
+    ? [compilerAttempt("latexmk", outputDir, texPath), compilerAttempt("tectonic", outputDir, texPath)]
+    : [compilerAttempt("tectonic", outputDir, texPath), compilerAttempt("latexmk", outputDir, texPath)];
+  const logs: string[] = [];
 
-  const cmd = compiler === "latexmk" ? "latexmk" : "tectonic";
+  await fs.mkdir(texVarDir, { recursive: true });
+  await fs.mkdir(varTexFontsDir, { recursive: true });
 
-  try {
-    const { stdout, stderr } = await spawnWithTimeout(cmd, args, env.LATEX_COMPILE_TIMEOUT);
-    const log = `[${cmd} stdout]\n${stdout}\n\n[${cmd} stderr]\n${stderr}`;
-    await fs.writeFile(logPath, log, "utf-8");
-
-    // Verify PDF was produced
-    let pdfExists = false;
+  for (const attempt of attempts) {
     try {
-      const stat = await fs.stat(pdfPath);
-      pdfExists = stat.size > 0;
-    } catch {
-      pdfExists = false;
-    }
+      const { stdout, stderr } = await spawnWithTimeout(
+        attempt.cmd,
+        attempt.args,
+        env.LATEX_COMPILE_TIMEOUT,
+        {
+          ...process.env,
+          TEXMFVAR: process.env.TEXMFVAR || texVarDir,
+          VARTEXFONTS: process.env.VARTEXFONTS || varTexFontsDir,
+        },
+      );
+      logs.push(`[${attempt.cmd} stdout]\n${stdout}\n\n[${attempt.cmd} stderr]\n${stderr}`);
 
-    if (!pdfExists) {
-      return {
-        pdfPath,
-        logPath,
-        success: false,
-        error: `Compiler finished but no valid PDF was produced at ${pdfPath}`,
-      };
-    }
+      const pdfExists = await hasPdf(pdfPath);
+      if (pdfExists) {
+        await fs.writeFile(logPath, logs.join("\n\n"), "utf-8");
+        return { pdfPath, logPath, success: true };
+      }
 
-    return { pdfPath, logPath, success: true };
-  } catch (err) {
-    const errorMessage = err instanceof Error ? err.message : String(err);
-    // Write error log
-    await fs.writeFile(logPath, `Compile failed: ${errorMessage}\n`, "utf-8");
-    return { pdfPath, logPath, success: false, error: errorMessage };
+      logs.push(`[${attempt.cmd} error]\nCompiler finished but no valid PDF was produced at ${pdfPath}`);
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : String(err);
+      logs.push(`[${attempt.cmd} error]\n${errorMessage}`);
+    }
+  }
+
+  const errorMessage = `All LaTeX compilers failed for ${texPath}`;
+  await fs.writeFile(logPath, `${logs.join("\n\n")}\n\n[final]\n${errorMessage}\n`, "utf-8");
+  return { pdfPath, logPath, success: false, error: errorMessage };
+}
+
+function compilerAttempt(
+  compiler: "tectonic" | "latexmk",
+  outputDir: string,
+  texPath: string,
+): { cmd: string; args: string[] } {
+  if (compiler === "latexmk") {
+    return {
+      cmd: "latexmk",
+      args: [
+        "-pdf",
+        "-interaction=nonstopmode",
+        "-halt-on-error",
+        `-outdir=${outputDir}`,
+        texPath,
+      ],
+    };
+  }
+
+  return {
+    cmd: "tectonic",
+    args: ["--outdir", outputDir, texPath],
+  };
+}
+
+async function hasPdf(pdfPath: string): Promise<boolean> {
+  try {
+    const stat = await fs.stat(pdfPath);
+    return stat.size > 0;
+  } catch {
+    return false;
   }
 }
 
@@ -70,11 +99,13 @@ function spawnWithTimeout(
   cmd: string,
   args: string[],
   timeoutMs: number,
+  childEnv?: NodeJS.ProcessEnv,
 ): Promise<{ stdout: string; stderr: string }> {
   return new Promise((resolve, reject) => {
     const child = spawn(cmd, args, {
       stdio: ["ignore", "pipe", "pipe"],
       timeout: timeoutMs,
+      env: childEnv,
     });
 
     let stdout = "";
