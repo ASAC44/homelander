@@ -20,6 +20,8 @@ npm run dev
 | Variable | Required | Default | Description |
 |---|---|---|---|
 | `PORT` | No | 3000 | HTTP server port |
+| `HOMELANDER_MOCK_MODE` | No | false | Force the analysis/report loop to use complete synthetic mock data, even when API keys are configured |
+| `HOMELANDER_MOCK_MIN_DURATION_MS` | No | 60000 | Minimum elapsed time for forced mock analysis/report responses |
 | `SLACK_BOT_TOKEN` | No | — | Slack bot token |
 | `SLACK_SIGNING_SECRET` | No | — | Slack signing secret |
 | `OPENAI_API_KEY` | No | — | Any OpenAI-compatible API key |
@@ -33,7 +35,7 @@ npm run dev
 | `BRIGHTDATA_API_TOKEN` | No | — | Bright Data API token |
 | `BRIGHTDATA_PRO_MODE` | No | false | Bright Data pro mode |
 
-Without API keys, runs fully offline with realistic mock data.
+Without API keys, the app falls back to offline heuristic/mock data where providers are unavailable. Set `HOMELANDER_MOCK_MODE=true` to force the full analysis/report loop into mock mode regardless of configured API keys.
 
 ## Routes
 
@@ -98,7 +100,8 @@ AGENTS.md             # Agent rules and conventions
 ## Data modes
 
 - **LIVE** — Real web searches + LLM analysis (requires API keys)
-- **MOCK** — Heuristic fallbacks, realistic but not current (no API keys needed)
+- **MOCK fallback** — Heuristic fallbacks, realistic but not current (no API keys needed)
+- **Forced mock loop** — `HOMELANDER_MOCK_MODE=true` bypasses live providers for shipment analysis and returns a complete synthetic report with mock evidence/source labels. Slack intake still collects shipment details, then the final summary waits until at least `HOMELANDER_MOCK_MIN_DURATION_MS` has elapsed so demos do not complete instantly.
 
 ## License
 

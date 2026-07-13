@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { z } from "zod";
 import { runAnalysis } from "../lib/orchestrator.js";
+import { waitForMockLoopMinimum } from "../lib/mock-mode.js";
 import type { ShipmentInput } from "../lib/types.js";
 
 const shipmentInputSchema = z.object({
@@ -26,7 +27,9 @@ analyze.post("/", async (c) => {
     if (!parsed.success) {
       return c.json({ error: "Invalid input", details: parsed.error.flatten().fieldErrors }, 400);
     }
+    const startedAtMs = Date.now();
     const result = await runAnalysis(parsed.data as ShipmentInput);
+    await waitForMockLoopMinimum(startedAtMs);
     return c.json(result);
   } catch (err) {
     console.error("[analyze] error:", err);

@@ -3,6 +3,7 @@ import { WebClient } from "@slack/web-api";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { intake } from "../lib/agents.js";
+import { waitForMockLoopMinimum } from "../lib/mock-mode.js";
 import { runAnalysis, runTargetedDoubt } from "../lib/orchestrator.js";
 import { answerTradeQuestion } from "../lib/qa.js";
 import { classifyTargetedDoubt } from "../lib/targeted.js";
@@ -331,6 +332,7 @@ export async function handleEvent(
     text: "Running the analysis...",
   });
 
+  const mockLoopStartedAtMs = Date.now();
   let analysisResult;
   try {
     analysisResult = await runAnalysis(parsed.input);
@@ -431,6 +433,7 @@ export async function handleEvent(
   });
 
   try {
+    await waitForMockLoopMinimum(mockLoopStartedAtMs);
     await bot.chat.postMessage({
       channel,
       thread_ts: threadTs,
