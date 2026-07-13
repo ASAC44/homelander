@@ -354,9 +354,20 @@ function normalizeReqs(raw: string): string[] {
   if (/refrigerat|reefer|chilled|cold[\s-]?chain|cool/.test(m)) out.push("Refrigerated");
   if (/fragile|breakable|delicate/.test(m)) out.push("Fragile");
   if (/hazard|dangerous|hazmat|imdg|flammable|corros|toxic|lithium battery/.test(m)) out.push("Hazardous");
+  if (/lithium (battery|batteries)|battery|batteries/.test(m)) out.push("Lithium batteries included");
+  if (/contained in equipment|installed in equipment|inside equipment|built[\s-]?in/.test(m)) out.push("Lithium batteries contained in equipment");
+  if (/packed with equipment|separately packed with/.test(m)) out.push("Lithium batteries packed with equipment");
   if (/organic|bio[\s-]?certified/.test(m)) out.push("Organic");
   if (/ambient|standard|none|no special|regular|dry/.test(m)) out.push("Standard (ambient)");
   return [...new Set(out)];
+}
+
+function hasLithiumBattery(reqs?: string[]): boolean {
+  return (reqs ?? []).some((req) => /lithium|batter/i.test(req));
+}
+
+function hasLithiumBatteryPacking(reqs?: string[]): boolean {
+  return (reqs ?? []).some((req) => /contained in equipment|packed with equipment/i.test(req));
 }
 
 export async function intake(text: string, current?: Partial<ShipmentInput>): Promise<IntakeResult> {
@@ -380,6 +391,7 @@ export async function intake(text: string, current?: Partial<ShipmentInput>): Pr
   });
 
   const newReqs = normalizeReqs(extracted.specialRaw || "");
+  const manualReqs = normalizeReqs(text);
 
   const merged: ShipmentInput = {
     product: clean(extracted.product) || current?.product || "",
@@ -391,7 +403,9 @@ export async function intake(text: string, current?: Partial<ShipmentInput>): Pr
     pricePerKg: Number(extracted.pricePerKg) > 0 ? Number(extracted.pricePerKg) : current?.pricePerKg,
     shipDate: clean(extracted.shipDate) || current?.shipDate || "",
     shippingMode: normalizeMode(extracted.shippingModeRaw || "") || current?.shippingMode || "",
-    specialRequirements: newReqs.length ? newReqs : current?.specialRequirements,
+    specialRequirements: newReqs.length || manualReqs.length || current?.specialRequirements?.length
+      ? [...new Set([...(current?.specialRequirements ?? []), ...newReqs, ...manualReqs])]
+      : undefined,
     locked: current?.locked,
   };
 
@@ -414,6 +428,7 @@ export async function intake(text: string, current?: Partial<ShipmentInput>): Pr
     ["pricePerKg", "the price per kg in USD (so I can estimate duties)", () => (merged.pricePerKg ?? 0) > 0],
     ["shipDate", "when it's ready to ship", () => !!merged.shipDate],
     ["specialRequirements", "any special handling (refrigerated, frozen, fragile, hazardous, organic — or just say 'none')", () => (merged.specialRequirements?.length ?? 0) > 0],
+    ["lithiumBatteryPacking", "whether the batteries are packed with equipment or contained in equipment", () => !hasLithiumBattery(merged.specialRequirements) || hasLithiumBatteryPacking(merged.specialRequirements)],
   ];
 
   const stillMissing = required.filter(([, , ok]) => !ok());

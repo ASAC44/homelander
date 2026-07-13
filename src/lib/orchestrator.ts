@@ -20,6 +20,8 @@ import type {
   SearchRecord,
   ShipmentInput,
   Source,
+  TargetedDoubtKind,
+  TargetedDoubtResult,
 } from "./types.js";
 
 const CATEGORY_WEIGHTS: Record<string, number> = {
@@ -198,6 +200,117 @@ export async function runAnalysis(input: ShipmentInput): Promise<AnalysisResult>
     generatedAt: new Date().toISOString(),
     dataMode: brightDataMode(),
   };
+}
+
+export async function runTargetedDoubt(
+  input: ShipmentInput,
+  kind: TargetedDoubtKind,
+  question: string,
+): Promise<TargetedDoubtResult> {
+  console.log(`[orchestrator] Running targeted ${kind} doubt for ${input.product}`);
+  resetSearchLog();
+
+  const profile = await productAgent(input);
+  const context =
+    `${input.product} (${profile.productCategory}), ${input.weightKg}kg, ` +
+    `${input.origin} -> ${input.destination}, ship date ${input.shipDate}. ` +
+    `User question: ${question}`;
+
+  if (kind === "tariff") {
+    console.log("[orchestrator] Running targeted Tariff & Regulation Agent...");
+    const tariff = await tariffAgent(input, profile);
+    if (tariff && input.pricePerKg && input.weightKg) {
+      tariff.goodsValueUsd = Math.round(input.pricePerKg * input.weightKg);
+      tariff.estimatedDutyUsd = Math.round((tariff.goodsValueUsd * tariff.totalDutyPct) / 100);
+    }
+    const additional = tariff?.additional.length
+      ? ` Additional: ${tariff.additional.map((a) => `${a.name} ${a.ratePct}%`).join(", ")}.`
+      : "";
+    return buildTargetedResult(input, kind, "Tariff & Regulation Agent", {
+      headline: tariff
+        ? `HS ${tariff.hsCode || "unconfirmed"} · ~${tariff.totalDutyPct}% estimated duty`
+        : "Tariff data unavailable",
+      detail: tariff
+        ? `${tariff.notes}${additional} Required documents: ${tariff.documents.map((d) => d.name).slice(0, 5).join(", ") || "standard import packet"}.`
+        : "I could not produce a reliable tariff estimate from the available sources.",
+      actionable: "Verify the HS classification and duty treatment with a licensed customs broker before booking.",
+      score: null,
+      sources: tariff?.sources ?? [],
+    });
+  }
+
+  if (kind === "port") {
+    console.log("[orchestrator] Running targeted Port Recommendation Agent...");
+    const recommendation = await portRecommenderAgent(input);
+    const options = recommendation?.options ?? [];
+    const best = options.find((o) => o.recommended) ?? options[0];
+    return buildTargetedResult(input, kind, "Port Recommendation Agent", {
+      headline: best ? `Prefer ${best.name} · congestion ${best.congestionScore}/100` : "Port recommendation unavailable",
+      detail: recommendation
+        ? `${recommendation.rationale} Options checked: ${options.map((o) => `${o.name} ~${o.waitDays}d wait`).join("; ")}.`
+        : "I could not identify reliable alternate port options from the available sources.",
+      actionable: best
+        ? `Plan around roughly ${best.waitDays} days of port wait at ${best.name}, and re-check queues before booking.`
+        : "Re-check intended-port dwell time and vessel queues before booking.",
+      score: best?.congestionScore ?? null,
+      sources: dedupe(options.flatMap((o) => o.sources)).slice(0, 6),
+    });
+  }
+
+  const specs = buildIntelSpecs(input, profile);
+  const spec = specs.find((s) => s.category === kind);
+  if (!spec) {
+    throw new Error(`No targeted agent configured for ${kind}`);
+  }
+
+  console.log(`[orchestrator] Running targeted ${spec.name}...`);
+  const { factor } = await intelAgent(spec, context);
+  return buildTargetedResult(input, kind, spec.name, {
+    headline: `${factor.label} · risk ${factor.score}/100`,
+    detail: factor.detail,
+    actionable: factor.actionable,
+    score: factor.score,
+    sources: factor.sources,
+  });
+}
+
+function buildTargetedResult(
+  input: ShipmentInput,
+  kind: TargetedDoubtKind,
+  agentName: string,
+  data: {
+    headline: string;
+    detail: string;
+    actionable: string;
+    score: number | null;
+    sources: Source[];
+  },
+): TargetedDoubtResult {
+  const searches: SearchRecord[] = getSearchLog().map((e) => ({
+    agent: attributeTargetedSearch(e.query, agentName),
+    query: e.query,
+    results: e.results,
+    mode: e.mode,
+  }));
+
+  return {
+    input,
+    kind,
+    agentName,
+    headline: data.headline,
+    detail: data.detail,
+    actionable: data.actionable,
+    score: data.score,
+    sources: dedupe(data.sources).slice(0, 6),
+    searches,
+    generatedAt: new Date().toISOString(),
+    dataMode: brightDataMode(),
+  };
+}
+
+function attributeTargetedSearch(query: string, targetAgentName: string): string {
+  if (/materials composition manufacturing HS code/i.test(query)) return "Product & Material Agent";
+  return targetAgentName;
 }
 
 function dedupe(sources: Source[]): Source[] {

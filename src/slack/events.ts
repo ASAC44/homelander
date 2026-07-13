@@ -1,18 +1,50 @@
 import { env } from "../config.js";
 import { WebClient } from "@slack/web-api";
+import fs from "node:fs/promises";
+import path from "node:path";
 import { intake } from "../lib/agents.js";
 import { runAnalysis } from "../lib/orchestrator.js";
+import { answerTradeQuestion } from "../lib/qa.js";
+import type { AnalysisResult, ShipmentInput } from "../lib/types.js";
 import { renderBlocks } from "./render.js";
+import { routeMessage } from "./router.js";
 import { buildReportModel } from "../report/model.js";
 import { renderEvidence } from "../report/evidence.js";
 import { renderReportWebPage } from "../report/web.js";
+import { renderLatex } from "../report/latex.js";
+import { compileLatexReport } from "../report/pdf.js";
 import { saveHtmlReport, saveEvidence, initStorage } from "../report/storage.js";
+import {
+  answerReportFollowUp,
+  isLikelyReportFollowUp,
+  isLikelyShipmentChange,
+  type CompletedThreadReport,
+} from "./followup.js";
 
 const bot = env.SLACK_BOT_TOKEN ? new WebClient(env.SLACK_BOT_TOKEN) : null;
 
 // In-memory dedup with a 5-minute TTL.
 const seenEvents = new Map<string, number>();
 const DEDUP_TTL_MS = 5 * 60 * 1000;
+interface LastReportUrls {
+  reportUrl?: string | null;
+  pdfReportUrl?: string | null;
+  evidenceUrl?: string | null;
+}
+
+interface ThreadConversationState {
+  input?: Partial<ShipmentInput>;
+  lastAnalysis?: AnalysisResult;
+  lastReportUrls?: LastReportUrls;
+  completed?: CompletedThreadReport;
+  awaitingIntake?: boolean;
+  updatedAt: number;
+}
+
+const conversations = new Map<string, ThreadConversationState>();
+const CONVERSATION_TTL_MS = 30 * 60 * 1000;
+const completedShipments = new Map<string, { input: ShipmentInput; updatedAt: number }>();
+const COMPLETED_SHIPMENT_TTL_MS = 2 * 60 * 60 * 1000;
 
 export function isDuplicate(eventId: string): boolean {
   const now = Date.now();
@@ -28,6 +60,84 @@ export function isDuplicate(eventId: string): boolean {
     }
   }
   return false;
+}
+
+function conversationKey(channel: string, scope: string): string {
+  return `${channel}:${scope}`;
+}
+
+function getConversationState(key: string): ThreadConversationState | undefined {
+  const state = conversations.get(key);
+  if (!state) return undefined;
+  if (Date.now() - state.updatedAt > CONVERSATION_TTL_MS) {
+    conversations.delete(key);
+    return undefined;
+  }
+  return state;
+}
+
+function setConversationState(key: string, state: Omit<ThreadConversationState, "updatedAt">): void {
+  conversations.set(key, { ...state, updatedAt: Date.now() });
+  cleanupConversationState();
+}
+
+function setCompletedReportState(
+  key: string,
+  completed: CompletedThreadReport,
+  lastReportUrls: LastReportUrls,
+): void {
+  conversations.set(key, {
+    lastAnalysis: completed.analysisResult,
+    lastReportUrls,
+    completed,
+    awaitingIntake: false,
+    updatedAt: Date.now(),
+  });
+  cleanupConversationState();
+}
+
+function clearPendingInputState(key: string): void {
+  const existing = getConversationState(key);
+  if (!existing?.completed && !existing?.lastAnalysis) {
+    conversations.delete(key);
+    return;
+  }
+  conversations.set(key, {
+    completed: existing.completed,
+    lastAnalysis: existing.lastAnalysis,
+    lastReportUrls: existing.lastReportUrls,
+    awaitingIntake: false,
+    updatedAt: Date.now(),
+  });
+}
+
+function cleanupConversationState(): void {
+  if (conversations.size > 1000) {
+    const now = Date.now();
+    for (const [id, state] of conversations) {
+      if (now - state.updatedAt > CONVERSATION_TTL_MS) conversations.delete(id);
+    }
+  }
+}
+
+function getCompletedShipment(key: string): ShipmentInput | undefined {
+  const state = completedShipments.get(key);
+  if (!state) return undefined;
+  if (Date.now() - state.updatedAt > COMPLETED_SHIPMENT_TTL_MS) {
+    completedShipments.delete(key);
+    return undefined;
+  }
+  return state.input;
+}
+
+function setCompletedShipment(key: string, input: ShipmentInput): void {
+  completedShipments.set(key, { input, updatedAt: Date.now() });
+  if (completedShipments.size > 1000) {
+    const now = Date.now();
+    for (const [id, state] of completedShipments) {
+      if (now - state.updatedAt > COMPLETED_SHIPMENT_TTL_MS) completedShipments.delete(id);
+    }
+  }
 }
 
 export interface SlackEventPayload {
@@ -103,7 +213,6 @@ export async function handleEvent(
   const userText = event.text || "";
   const channel = event.channel || "";
   const threadTs = event.thread_ts || eventTs;
-  const user = event.user || "";
 
   if (!bot || !channel) {
     console.warn("[slack] Bot not configured or no channel");
@@ -112,6 +221,8 @@ export async function handleEvent(
 
   // Strip @Transitra mention prefix for app_mention
   const cleanText = isAppMention ? userText.replace(/<@[A-Z0-9]+>/g, "").trim() : userText;
+  const stateKey = conversationKey(channel, isDm ? "dm" : threadTs);
+  const threadState = getConversationState(stateKey);
 
   if (!cleanText) {
     await bot.chat.postMessage({
@@ -122,10 +233,59 @@ export async function handleEvent(
     return { status: 200, body: "ok" };
   }
 
+  const route = await routeMessage(cleanText, {
+    awaitingIntake: threadState?.awaitingIntake,
+    input: threadState?.input,
+    hasLastAnalysis: Boolean(threadState?.lastAnalysis || threadState?.completed),
+  });
+
+  if (route.route === "help") {
+    await bot.chat.postMessage({
+      channel,
+      thread_ts: threadTs,
+      text: "Hi! Ask me a trade/logistics question, or send shipment details and ask me to analyze them. E.g.: \"What documents do I need for cotton shirts from India to the US?\" or \"Analyze 10,000 kg of metal office chairs from Shenzhen to Los Angeles by September.\"\n\n_Homelander is decision-support, not legal/customs/tax/freight-booking advice._",
+    });
+    return { status: 200, body: "ok" };
+  }
+
+  if (route.route === "question") {
+    try {
+      const answer = threadState?.completed && isLikelyReportFollowUp(cleanText) && !isLikelyShipmentChange(cleanText)
+        ? await answerReportFollowUp(cleanText, threadState.completed)
+        : await answerTradeQuestion({
+            question: cleanText,
+            inputContext: threadState?.lastAnalysis?.input
+              ?? threadState?.completed?.analysisResult.input
+              ?? threadState?.input
+              ?? getCompletedShipment(stateKey),
+            analysisContext: threadState?.lastAnalysis ?? threadState?.completed?.analysisResult,
+          });
+      await bot.chat.postMessage({
+        channel,
+        thread_ts: threadTs,
+        text: answer,
+        unfurl_links: false,
+        unfurl_media: false,
+      });
+    } catch (err) {
+      console.error("[slack] Q&A failed:", err);
+      await bot.chat.postMessage({
+        channel,
+        thread_ts: threadTs,
+        text: "Sorry, I had trouble answering that. Could you rephrase the trade or logistics question?",
+      });
+    }
+    return { status: 200, body: "ok" };
+  }
+
   // Run intake
   let parsed;
+  const currentInput = (threadState?.awaitingIntake ? threadState.input : undefined) ??
+    (threadState?.completed && isLikelyShipmentChange(cleanText)
+      ? threadState.completed.analysisResult.input
+      : undefined);
   try {
-    parsed = await intake(cleanText);
+    parsed = await intake(cleanText, currentInput);
   } catch (err) {
     console.error("[slack] intake failed:", err);
     await bot.chat.postMessage({
@@ -137,6 +297,13 @@ export async function handleEvent(
   }
 
   if (!parsed.ready) {
+    setConversationState(stateKey, {
+      input: parsed.input,
+      lastAnalysis: threadState?.lastAnalysis,
+      lastReportUrls: threadState?.lastReportUrls,
+      completed: threadState?.completed,
+      awaitingIntake: true,
+    });
     await bot.chat.postMessage({
       channel,
       thread_ts: threadTs,
@@ -149,14 +316,17 @@ export async function handleEvent(
   await bot.chat.postMessage({
     channel,
     thread_ts: threadTs,
-    text: `Got it! Analyzing shipment of ${parsed.input.product} from ${parsed.input.origin} to ${parsed.input.destination}...`,
+    text: "Running the analysis...",
   });
 
   let analysisResult;
   try {
     analysisResult = await runAnalysis(parsed.input);
+    clearPendingInputState(stateKey);
+    setCompletedShipment(stateKey, analysisResult.input);
   } catch (err) {
     console.error("[slack] Analysis failed:", err);
+    clearPendingInputState(stateKey);
     await bot.chat.postMessage({
       channel,
       thread_ts: threadTs,
@@ -178,15 +348,18 @@ export async function handleEvent(
   const reportModel = buildReportModel(analysisResult);
   let evidenceResult = null;
   let reportUrl: string | null = null;
+  let pdfReportUrl: string | null = null;
   const evidenceBaseUrl = opts?.publicBaseUrl || env.PUBLIC_BASE_URL;
   const evidenceUrl = evidenceBaseUrl
     ? `${evidenceBaseUrl.replace(/\/$/, "")}/evidence/`
     : null;
+  let evidenceLink: string | null = null;
 
   // Generate evidence file (always, even if PDF fails)
   try {
     const evidenceText = renderEvidence(reportModel);
     evidenceResult = await saveEvidence(evidenceText);
+    evidenceLink = evidenceResult && evidenceUrl ? `${evidenceUrl}${evidenceResult.evidenceId}` : null;
   } catch (err) {
     console.error("[slack] Evidence generation failed:", err);
   }
@@ -203,6 +376,26 @@ export async function handleEvent(
     if (evidenceBaseUrl) {
       reportUrl = `${evidenceBaseUrl.replace(/\/$/, "")}/reports/${saved.slug}/${saved.fileName}`;
     }
+
+    try {
+      const tex = await renderLatex(reportModel);
+      const outputDir = path.dirname(saved.filePath);
+      const texPath = path.join(outputDir, `report-${reportModel.reportId}.tex`);
+      await fs.writeFile(texPath, tex, "utf-8");
+      const compiled = await compileLatexReport(texPath, outputDir);
+      if (compiled.success && evidenceBaseUrl) {
+        pdfReportUrl = `${evidenceBaseUrl.replace(/\/$/, "")}/reports/${saved.slug}/report-${reportModel.reportId}.pdf`;
+      }
+      if (!compiled.success) {
+        console.warn("[slack] PDF report compilation failed:", compiled.error);
+      }
+      if (env.REPORT_KEEP_TEX !== "true") {
+        await fs.unlink(texPath).catch(() => {});
+        await fs.unlink(compiled.logPath).catch(() => {});
+      }
+    } catch (err) {
+      console.error("[slack] PDF report generation failed:", err);
+    }
   } catch (err) {
     console.error("[slack] Report webpage generation failed:", err);
   }
@@ -210,8 +403,19 @@ export async function handleEvent(
   // Post summary
   const blocks = renderBlocks(analysisResult, {
     reportUrl,
+    pdfReportUrl,
     evidence: evidenceResult,
-    evidenceUrl: evidenceResult && evidenceUrl ? `${evidenceUrl}${evidenceResult.evidenceId}` : null,
+    evidenceUrl: evidenceLink,
+  });
+  setCompletedReportState(stateKey, {
+    analysisResult,
+    reportUrl,
+    pdfReportUrl,
+    evidence: evidenceResult,
+  }, {
+    reportUrl,
+    pdfReportUrl,
+    evidenceUrl: evidenceLink,
   });
 
   try {

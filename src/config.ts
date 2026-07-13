@@ -14,7 +14,7 @@ const envSchema = z.object({
   EVIDENCE_STORAGE_DIR: z.string().default("./data/evidence"),
   EVIDENCE_TTL_HOURS: z.coerce.number().default(72),
   LATEX_COMPILER: z.enum(["tectonic", "latexmk"]).default("tectonic"),
-  LATEX_COMPILE_TIMEOUT: z.coerce.number().default(120_000),
+  LATEX_COMPILE_TIMEOUT: z.coerce.number().default(300_000),
   REPORT_KEEP_TEX: z.string().default("true"),
   PUBLIC_BASE_URL: z.string().optional(),
 });
