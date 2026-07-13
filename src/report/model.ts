@@ -1,12 +1,21 @@
 import type { AnalysisResult } from "../lib/types.js";
 import crypto from "node:crypto";
 
+type ReportSource = {
+  title: string;
+  url: string;
+  snippet?: string;
+};
+
 export interface ReportModel {
   reportId: string;
   version: string;
   generatedAt: string;
   dataMode: "live" | "mock";
   executiveSummary: string;
+  riskScore: number;
+  expectedCostIncreasePct: number;
+  expectedDelayDays: [number, number];
   commodity: {
     productCategory: string;
     hsCodes: string[];
@@ -23,9 +32,27 @@ export interface ReportModel {
     containerSize?: string;
     pricePerKg?: number;
     specialRequirements?: string[];
+    locked?: string[];
   };
   assumptions: string[];
   missingFields: string[];
+  alerts: Array<{
+    severity: "high" | "medium" | "low";
+    title: string;
+    impact: string;
+  }>;
+  recommendations: Array<{
+    action: string;
+    rationale: string;
+  }>;
+  actionPlan: Array<{
+    action: string;
+    deadline: string;
+    dueDate: string | null;
+    category: string;
+    urgency: "high" | "medium" | "low";
+    why: string;
+  }>;
   routes: Array<{
     method: string;
     cost: number;
@@ -48,7 +75,9 @@ export interface ReportModel {
     baseDutyPct: number;
     additional: Array<{ name: string; ratePct: number }>;
     totalDutyPct: number;
+    requirements: string[];
     notes: string;
+    sources: ReportSource[];
   } | null;
   documents: Array<{ name: string; url: string }>;
   risks: Array<{
@@ -57,7 +86,9 @@ export interface ReportModel {
     label: string;
     detail: string;
     actionable: string;
+    trend: "up" | "down" | "flat";
     keyFindings: string[];
+    sources: ReportSource[];
   }>;
   costForecasts: Array<{
     horizonDays: number;
@@ -74,9 +105,21 @@ export interface ReportModel {
     impact: "high" | "medium" | "low";
     affects: string;
     forecastPct: number;
-    series: Array<{ t: string; v: number | null }>;
+    forecastNote: string;
+    priceLive: boolean;
+    series: Array<{ t: string; v: number | null; f?: number | null }>;
+    sources: ReportSource[];
   }>;
   dependencyGraph: Array<{ node: string; children: string[] }>;
+  geo: {
+    origin: { name: string; lat: number; lng: number };
+    destination: { name: string; lat: number; lng: number };
+    distanceKm: number;
+  } | null;
+  portRecommendation: {
+    recommended: string;
+    rationale: string;
+  } | null;
   portOptions: Array<{
     name: string;
     congestionScore: number;
@@ -84,12 +127,18 @@ export interface ReportModel {
     freightCost: number;
     recommended: boolean;
     note: string;
+    lat: number | null;
+    lng: number | null;
+    sources: ReportSource[];
   }>;
-  sources: Array<{
-    title: string;
-    url: string;
-    snippet?: string;
+  news: ReportSource[];
+  searches: Array<{
+    agent: string;
+    query: string;
+    results: number;
+    mode: "live" | "mock";
   }>;
+  sources: ReportSource[];
   confidence: string;
   limitations: string[];
   disclaimer: string;
@@ -112,6 +161,9 @@ export function buildReportModel(result: AnalysisResult): ReportModel {
     generatedAt: result.generatedAt,
     dataMode: result.dataMode,
     executiveSummary: result.executiveSummary,
+    riskScore: result.riskScore,
+    expectedCostIncreasePct: result.expectedCostIncreasePct,
+    expectedDelayDays: result.expectedDelayDays,
     commodity: {
       productCategory: result.productCategory,
       hsCodes: result.hsCodes,
@@ -128,9 +180,27 @@ export function buildReportModel(result: AnalysisResult): ReportModel {
       containerSize: result.input.containerSize,
       pricePerKg: result.input.pricePerKg,
       specialRequirements: result.input.specialRequirements,
+      locked: result.input.locked,
     },
     assumptions: extractAssumptions(result),
     missingFields: [],
+    alerts: result.alerts.map((a) => ({
+      severity: a.severity,
+      title: a.title,
+      impact: a.impact,
+    })),
+    recommendations: result.recommendations.map((r) => ({
+      action: r.action,
+      rationale: r.rationale,
+    })),
+    actionPlan: result.actionPlan.map((a) => ({
+      action: a.action,
+      deadline: a.deadline,
+      dueDate: a.dueDate,
+      category: a.category,
+      urgency: a.urgency,
+      why: a.why,
+    })),
     routes: result.routes.map((r) => ({
       method: r.method,
       cost: r.cost,
@@ -156,7 +226,9 @@ export function buildReportModel(result: AnalysisResult): ReportModel {
           baseDutyPct: result.tariff.baseDutyPct,
           additional: result.tariff.additional,
           totalDutyPct: result.tariff.totalDutyPct,
+          requirements: result.tariff.requirements,
           notes: result.tariff.notes,
+          sources: result.tariff.sources.map((s) => ({ title: s.title, url: s.url, snippet: s.snippet })),
         }
       : null,
     documents: result.tariff?.documents ?? [],
@@ -166,7 +238,9 @@ export function buildReportModel(result: AnalysisResult): ReportModel {
       label: r.label,
       detail: r.detail,
       actionable: r.actionable,
+      trend: r.trend,
       keyFindings: r.keyFindings,
+      sources: r.sources.map((s) => ({ title: s.title, url: s.url, snippet: s.snippet })),
     })),
     costForecasts: result.costForecasts.map((c) => ({
       horizonDays: c.horizonDays,
@@ -174,7 +248,7 @@ export function buildReportModel(result: AnalysisResult): ReportModel {
       freightCostPct: c.freightCostPct,
       landedCostPct: c.landedCostPct,
     })),
-    drivers: result.drivers.slice(0, 5).map((d) => ({
+    drivers: result.drivers.map((d) => ({
       name: d.name,
       unit: d.unit,
       current: d.current,
@@ -183,12 +257,28 @@ export function buildReportModel(result: AnalysisResult): ReportModel {
       impact: d.impact,
       affects: d.affects,
       forecastPct: d.forecastPct,
-      series: d.series.map((p) => ({ t: p.t, v: p.v })),
+      forecastNote: d.forecastNote,
+      priceLive: d.priceLive,
+      series: d.series.map((p) => ({ t: p.t, v: p.v, f: p.f })),
+      sources: d.sources.map((s) => ({ title: s.title, url: s.url, snippet: s.snippet })),
     })),
     dependencyGraph: result.dependencyGraph.map((n) => ({
       node: n.node,
       children: n.children,
     })),
+    geo: result.geo
+      ? {
+          origin: result.geo.origin,
+          destination: result.geo.destination,
+          distanceKm: result.geo.distanceKm,
+        }
+      : null,
+    portRecommendation: result.portRecommendation
+      ? {
+          recommended: result.portRecommendation.recommended,
+          rationale: result.portRecommendation.rationale,
+        }
+      : null,
     portOptions: result.portRecommendation?.options.map((o) => ({
       name: o.name,
       congestionScore: o.congestionScore,
@@ -196,7 +286,17 @@ export function buildReportModel(result: AnalysisResult): ReportModel {
       freightCost: o.freightCost,
       recommended: o.recommended,
       note: o.note,
+      lat: o.lat,
+      lng: o.lng,
+      sources: o.sources.map((s) => ({ title: s.title, url: s.url, snippet: s.snippet })),
     })) ?? [],
+    news: result.news.map((s) => ({ title: s.title, url: s.url, snippet: s.snippet })),
+    searches: result.searches.map((s) => ({
+      agent: s.agent,
+      query: s.query,
+      results: s.results,
+      mode: s.mode,
+    })),
     sources: collectSources(result),
     confidence: deriveConfidence(result),
     limitations: deriveLimitations(result),
@@ -234,38 +334,41 @@ function extractAssumptions(result: AnalysisResult): string[] {
 function collectSources(result: AnalysisResult): ReportModel["sources"] {
   const seen = new Set<string>();
   const sources: ReportModel["sources"] = [];
+  const addSource = (source: { title: string; url: string; snippet?: string }): void => {
+    if (!source.url || seen.has(source.url)) return;
+    seen.add(source.url);
+    sources.push({ title: source.title, url: source.url, snippet: source.snippet });
+  };
 
   for (const rf of result.riskFactors) {
     for (const s of rf.sources) {
-      if (!seen.has(s.url)) {
-        seen.add(s.url);
-        sources.push({ title: s.title, url: s.url, snippet: s.snippet });
-      }
+      addSource(s);
     }
   }
   if (result.tariff) {
     for (const s of result.tariff.sources) {
-      if (!seen.has(s.url)) {
-        seen.add(s.url);
-        sources.push({ title: s.title, url: s.url, snippet: s.snippet });
+      addSource(s);
+    }
+    for (const doc of result.tariff.documents) {
+      if (doc.url) {
+        addSource({ title: `Document reference: ${doc.name}`, url: doc.url });
       }
+    }
+  }
+  for (const driver of result.drivers) {
+    for (const s of driver.sources) {
+      addSource(s);
     }
   }
   if (result.portRecommendation) {
     for (const opt of result.portRecommendation.options) {
       for (const s of opt.sources) {
-        if (!seen.has(s.url)) {
-          seen.add(s.url);
-          sources.push({ title: s.title, url: s.url, snippet: s.snippet });
-        }
+        addSource(s);
       }
     }
   }
   for (const news of result.news) {
-    if (!seen.has(news.url)) {
-      seen.add(news.url);
-      sources.push({ title: news.title, url: news.url, snippet: news.snippet });
-    }
+    addSource(news);
   }
   return sources;
 }
