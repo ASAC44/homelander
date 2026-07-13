@@ -3,8 +3,21 @@ import { z } from "zod";
 const envNumber = <T extends z.ZodTypeAny>(schema: T) =>
   z.preprocess((value) => value === "" ? undefined : value, schema);
 
+const envBoolean = (defaultValue: boolean) =>
+  z.preprocess((value) => {
+    if (value === "" || value === undefined) return undefined;
+    if (typeof value === "boolean") return value;
+    if (typeof value !== "string") return value;
+    const normalized = value.trim().toLowerCase();
+    if (["true", "1", "yes", "on"].includes(normalized)) return true;
+    if (["false", "0", "no", "off"].includes(normalized)) return false;
+    return value;
+  }, z.boolean().default(defaultValue));
+
 const envSchema = z.object({
   PORT: z.coerce.number().default(3000),
+  HOMELANDER_MOCK_MODE: envBoolean(false),
+  HOMELANDER_MOCK_MIN_DURATION_MS: envNumber(z.coerce.number().int().min(0).default(60_000)),
   SLACK_BOT_TOKEN: z.string().optional(),
   SLACK_SIGNING_SECRET: z.string().optional(),
   OPENAI_API_KEY: z.string().optional(),

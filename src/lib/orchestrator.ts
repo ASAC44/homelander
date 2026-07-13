@@ -9,9 +9,11 @@ import {
   tariffAgent,
   intelAgent,
 } from "./agents.js";
+import { env } from "../config.js";
 import { brightDataMode, getSearchLog, resetSearchLog } from "./brightdata.js";
 import { buildDrivers } from "./drivers.js";
 import { geocode, haversineKm } from "./geo.js";
+import { buildMockAnalysis } from "./mock-analysis.js";
 import type {
   AnalysisResult,
   DependencyNode,
@@ -47,6 +49,11 @@ function weightedRiskScore(factors: RiskFactor[]): number {
 }
 
 export async function runAnalysis(input: ShipmentInput): Promise<AnalysisResult> {
+  if (env.HOMELANDER_MOCK_MODE) {
+    console.log(`[orchestrator] HOMELANDER_MOCK_MODE=true; using full mock analysis for ${input.product}`);
+    return buildMockAnalysis(input);
+  }
+
   console.log(`[orchestrator] Analyzing ${input.product} · ${input.origin} → ${input.destination}`);
   resetSearchLog();
 
