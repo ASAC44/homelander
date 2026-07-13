@@ -1,4 +1,5 @@
 import { jsonCompletion, hasOpenAI } from "../lib/openai.js";
+import { classifyTargetedDoubt } from "../lib/targeted.js";
 import type { ShipmentInput } from "../lib/types.js";
 
 export type MessageRoute = "analysis_request" | "question" | "help";
@@ -55,6 +56,10 @@ function looksLikeIntakeAnswer(text: string): boolean {
 function deterministicRoute(text: string, context?: RouteContext): RouteDecision | null {
   const clean = normalize(text);
   if (!clean) return { route: "help", confidence: 1, reason: "empty message" };
+
+  if (classifyTargetedDoubt(clean).type === "targeted_doubt") {
+    return { route: "question", confidence: 0.92, reason: "targeted trade/logistics doubt" };
+  }
 
   if (isExplicitAnalysisRequest(clean)) {
     return { route: "analysis_request", confidence: 0.95, reason: "explicit analysis/report request" };

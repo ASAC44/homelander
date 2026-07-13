@@ -23,6 +23,7 @@ import type {
   TargetedDoubtKind,
   TargetedDoubtResult,
 } from "./types.js";
+import type { ProductProfile } from "./agents.js";
 
 const CATEGORY_WEIGHTS: Record<string, number> = {
   commodity: 1.0,
@@ -206,11 +207,12 @@ export async function runTargetedDoubt(
   input: ShipmentInput,
   kind: TargetedDoubtKind,
   question: string,
+  opts?: { analysisContext?: AnalysisResult },
 ): Promise<TargetedDoubtResult> {
   console.log(`[orchestrator] Running targeted ${kind} doubt for ${input.product}`);
   resetSearchLog();
 
-  const profile = await productAgent(input);
+  const profile = opts?.analysisContext ? profileFromAnalysis(opts.analysisContext) : await productAgent(input);
   const context =
     `${input.product} (${profile.productCategory}), ${input.weightKg}kg, ` +
     `${input.origin} -> ${input.destination}, ship date ${input.shipDate}. ` +
@@ -272,6 +274,16 @@ export async function runTargetedDoubt(
     score: factor.score,
     sources: factor.sources,
   });
+}
+
+function profileFromAnalysis(result: AnalysisResult): ProductProfile {
+  return {
+    productCategory: result.productCategory,
+    hsCodes: result.hsCodes,
+    materials: result.materials,
+    dependencies: result.dependencyGraph.flatMap((node) => node.children),
+    sources: result.news,
+  };
 }
 
 function buildTargetedResult(

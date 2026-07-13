@@ -3,10 +3,11 @@ import { WebClient } from "@slack/web-api";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { intake } from "../lib/agents.js";
-import { runAnalysis } from "../lib/orchestrator.js";
+import { runAnalysis, runTargetedDoubt } from "../lib/orchestrator.js";
 import { answerTradeQuestion } from "../lib/qa.js";
+import { classifyTargetedDoubt } from "../lib/targeted.js";
 import type { AnalysisResult, ShipmentInput } from "../lib/types.js";
-import { renderBlocks } from "./render.js";
+import { renderBlocks, renderTargetedDoubt } from "./render.js";
 import { routeMessage } from "./router.js";
 import { buildReportModel } from "../report/model.js";
 import { renderEvidence } from "../report/evidence.js";
@@ -250,16 +251,27 @@ export async function handleEvent(
 
   if (route.route === "question") {
     try {
-      const answer = threadState?.completed && isLikelyReportFollowUp(cleanText) && !isLikelyShipmentChange(cleanText)
-        ? await answerReportFollowUp(cleanText, threadState.completed)
-        : await answerTradeQuestion({
-            question: cleanText,
-            inputContext: threadState?.lastAnalysis?.input
-              ?? threadState?.completed?.analysisResult.input
-              ?? threadState?.input
-              ?? getCompletedShipment(stateKey),
-            analysisContext: threadState?.lastAnalysis ?? threadState?.completed?.analysisResult,
-          });
+      const analysisContext = threadState?.lastAnalysis ?? threadState?.completed?.analysisResult;
+      const shipmentChange = isLikelyShipmentChange(cleanText);
+      const targetedRoute = !shipmentChange && analysisContext
+        ? classifyTargetedDoubt(cleanText)
+        : { type: "unknown" as const };
+      const answer = targetedRoute.type === "targeted_doubt" && analysisContext
+        ? renderTargetedDoubt(await runTargetedDoubt(
+            analysisContext.input,
+            targetedRoute.kind,
+            cleanText,
+            { analysisContext },
+          ))
+        : threadState?.completed && isLikelyReportFollowUp(cleanText) && !shipmentChange
+          ? await answerReportFollowUp(cleanText, threadState.completed)
+          : await answerTradeQuestion({
+              question: cleanText,
+              inputContext: analysisContext?.input
+                ?? threadState?.input
+                ?? getCompletedShipment(stateKey),
+              analysisContext,
+            });
       await bot.chat.postMessage({
         channel,
         thread_ts: threadTs,
