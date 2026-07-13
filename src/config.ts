@@ -1,5 +1,8 @@
 import { z } from "zod";
 
+const envNumber = <T extends z.ZodTypeAny>(schema: T) =>
+  z.preprocess((value) => value === "" ? undefined : value, schema);
+
 const envSchema = z.object({
   PORT: z.coerce.number().default(3000),
   SLACK_BOT_TOKEN: z.string().optional(),
@@ -8,6 +11,11 @@ const envSchema = z.object({
   OPENAI_MODEL: z.string().default("gpt-4o-mini"),
   OPENAI_BASE_URL: z.string().optional(),
   OPENAI_REASONING_EFFORT: z.enum(["none", "low", "medium", "high", "xhigh"]).default("low"),
+  OPENAI_MAX_CONCURRENCY: envNumber(z.coerce.number().int().positive().optional()),
+  OPENAI_MAX_RETRIES: envNumber(z.coerce.number().int().min(0).default(3)),
+  OPENAI_RETRY_BASE_MS: envNumber(z.coerce.number().int().positive().default(750)),
+  OPENAI_RETRY_MAX_MS: envNumber(z.coerce.number().int().positive().default(8_000)),
+  OPENAI_RATE_LIMIT_COOLDOWN_MS: envNumber(z.coerce.number().int().positive().default(60_000)),
   BRIGHTDATA_API_TOKEN: z.string().optional(),
   BRIGHTDATA_PRO_MODE: z.string().default("false"),
   REPORT_STORAGE_DIR: z.string().default("./data/reports"),
