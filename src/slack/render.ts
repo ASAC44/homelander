@@ -6,6 +6,7 @@ export interface RenderOptions {
   pdfReportUrl?: string | null;
   evidence?: SaveEvidenceResult | null;
   evidenceUrl?: string | null;
+  reportDeliveryNote?: string | null;
 }
 
 export function renderBlocks(result: AnalysisResult, opts?: RenderOptions): string {
@@ -40,6 +41,10 @@ export function renderBlocks(result: AnalysisResult, opts?: RenderOptions): stri
 
   if (opts?.pdfReportUrl) {
     lines.push(`*Formal PDF report:* <${opts.pdfReportUrl}|Open memo PDF>`);
+  }
+
+  if (opts?.reportDeliveryNote) {
+    lines.push(opts.reportDeliveryNote);
   }
 
   // Evidence reference

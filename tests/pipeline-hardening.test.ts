@@ -128,8 +128,11 @@ test("Slack summary rendering does not reorder analysis risk factors in place", 
     dataMode: "mock",
   };
 
-  renderBlocks(result);
+  const summary = renderBlocks(result, {
+    reportDeliveryNote: "*Attached files:* Interactive HTML report and formal PDF report.",
+  });
 
+  assert.match(summary, /Interactive HTML report and formal PDF report/);
   assert.deepEqual(
     result.riskFactors.map((risk) => risk.label),
     ["Low weather risk", "High freight risk"],
