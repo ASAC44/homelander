@@ -6,11 +6,30 @@ Homelander is a Slack-native assistant for international trade and logistics. A 
 
 It turns a time-consuming research task into one focused conversation, with the evidence and assumptions needed for a human to make the final call.
 
+## How Homelander works
+
+![Homelander trade intelligence flow](docs/assets/homelander-flow.png)
+
+The flowchart shows the journey from an initial Slack question to a reviewable trade decision:
+
+1. **Intake:** A user sends a shipment question in a DM or with an explicit `@Homelander` mention. Homelander extracts the key details such as product, origin, destination, quantity, timing, value, and shipping mode.
+2. **Clarification:** If an important detail is missing or ambiguous, Homelander asks a focused follow-up question before analysis continues.
+3. **Research:** Specialist research agents investigate the product, tariffs, customs requirements, freight options, ports, weather, regulations, geopolitical conditions, and other factors that could affect the shipment.
+4. **Calculation:** Deterministic calculation engines compare routes and estimate landed cost. This includes available freight, duty, tax, handling, inland transport, storage, and other cost components.
+5. **Synthesis:** Homelander combines the research and calculations into route recommendations, risk explanations, assumptions, confidence levels, and suggested next steps.
+6. **Decision packet:** The user receives a concise Slack brief with supporting evidence and a complete PDF report for sharing, review, and verification.
+
 ## Why we built it
 
-International shipping decisions are rarely difficult because information does not exist. They are difficult because the information is scattered across tariff databases, carrier pages, port updates, regulations, weather reports, and spreadsheets.
+Moving goods across borders is a high-stakes coordination problem. A single shipment decision can depend on product classification, tariff treatment, freight rates, port congestion, documentation, weather, regulations, and geopolitical events. The information exists, but it is scattered across websites, databases, carrier pages, government notices, and spreadsheets.
 
-Homelander brings those pieces together in the place teams already work: Slack. It helps answer questions like:
+That fragmentation creates three problems:
+
+- **Slow decisions:** Teams spend hours collecting information before they can compare options.
+- **Hidden assumptions:** Cost estimates often leave out duties, handling, storage, inland transport, or risk.
+- **Low confidence:** A recommendation is difficult to review when its sources and reasoning are not visible.
+
+Homelander brings the research, calculation, and explanation together in the place teams already work: Slack. It helps answer questions like:
 
 > What is the best way to move 10,000 metal office chairs from Shenzhen to Los Angeles in September, and what could make that decision go wrong?
 
@@ -27,17 +46,6 @@ Homelander brings those pieces together in the place teams already work: Slack. 
 - Clear separation between facts, estimates, assumptions, and open questions.
 
 Homelander is designed to support human decisions. It does not make binding legal, customs, tax, or compliance decisions, and it does not book freight or file customs entries.
-
-## How it works
-
-![Homelander trade intelligence flow](docs/assets/homelander-flow.png)
-
-1. The user sends a shipment question in Slack.
-2. Homelander structures the request and asks for anything important that is missing.
-3. Focused research agents gather relevant evidence from public and official sources.
-4. Calculation engines estimate landed cost and compare route metrics.
-5. Homelander brings the findings together into a recommendation, risk summary, and action plan.
-6. The result is returned in the Slack thread, with a cited report for deeper review.
 
 ## Example prompts
 
@@ -82,8 +90,6 @@ npm install
 cp .env.example .env
 npm run dev
 ```
-
-The project can run in offline mock mode without API keys, using synthetic shipment data for demos. Mock results are for demonstration and are not current trade intelligence.
 
 To connect Slack, create an app, subscribe it to direct messages and `app_mention` events, add the credentials to `.env`, and send a DM to Homelander or mention `@Homelander`.
 
