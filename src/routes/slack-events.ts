@@ -15,11 +15,6 @@ slackEvents.post("/events", async (c) => {
     return c.text("Invalid JSON", 400);
   }
 
-  // URL verification challenge does not include a signature — handle it first.
-  if (payload.type === "url_verification") {
-    return c.text(payload.challenge ?? "");
-  }
-
   const verified = await verifySlackRequest(body, {
     "x-slack-request-timestamp": c.req.header("x-slack-request-timestamp") || "",
     "x-slack-signature": c.req.header("x-slack-signature") || "",
@@ -28,6 +23,10 @@ slackEvents.post("/events", async (c) => {
   if (!verified) {
     console.warn("[slack] Invalid signature");
     return c.text("Invalid signature", 401);
+  }
+
+  if (payload.type === "url_verification") {
+    return c.text(payload.challenge ?? "");
   }
 
   const requestUrl = new URL(c.req.url);

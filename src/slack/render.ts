@@ -6,11 +6,12 @@ export interface RenderOptions {
   pdfReportUrl?: string | null;
   evidence?: SaveEvidenceResult | null;
   evidenceUrl?: string | null;
+  reportDeliveryNote?: string | null;
 }
 
 export function renderBlocks(result: AnalysisResult, opts?: RenderOptions): string {
   const recommendedRoute = result.routes.find((r) => r.recommended) ?? result.routes[0] ?? null;
-  const topRisks = result.riskFactors
+  const topRisks = [...result.riskFactors]
     .sort((a, b) => b.score - a.score)
     .slice(0, 3);
 
@@ -40,6 +41,10 @@ export function renderBlocks(result: AnalysisResult, opts?: RenderOptions): stri
 
   if (opts?.pdfReportUrl) {
     lines.push(`*Formal PDF report:* <${opts.pdfReportUrl}|Open memo PDF>`);
+  }
+
+  if (opts?.reportDeliveryNote) {
+    lines.push(opts.reportDeliveryNote);
   }
 
   // Evidence reference

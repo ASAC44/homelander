@@ -94,12 +94,12 @@ function findBestRisk(question: string, risks: RiskFactor[]): RiskFactor | null 
     const score = terms.filter((term) => haystack.includes(term)).length;
     if (score > 0 && (!best || score > best.score)) best = { risk, score };
   }
-  return best?.risk ?? risks.sort((a, b) => b.score - a.score)[0] ?? null;
+  return best?.risk ?? [...risks].sort((a, b) => b.score - a.score)[0] ?? null;
 }
 
 function buildFallbackAnswer(question: string, result: AnalysisResult, risk: RiskFactor | null): string {
   const t = question.toLowerCase();
-  const selected = risk ?? result.riskFactors.sort((a, b) => b.score - a.score)[0] ?? null;
+  const selected = risk ?? [...result.riskFactors].sort((a, b) => b.score - a.score)[0] ?? null;
   if (!selected) {
     return "I do not have enough report detail to answer that from the completed analysis. The full report has the available assumptions, sources, and recommendations.";
   }
