@@ -1,0 +1,870 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Homelander System Flow</title>
+    <link
+      rel="stylesheet"
+      href="https://esm.sh/@excalidraw/excalidraw@0.18.0/dist/dev/index.css"
+    />
+    <style>
+      :root {
+        --paper: #f7f2e8;
+        --panel: #fffaf0;
+        --ink: #1f2933;
+        --muted: #5e6874;
+        --line: #d7cbb8;
+        --blue: #355c7d;
+        --green: #477a63;
+        --gold: #a56b22;
+        --red: #a34848;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        background: var(--paper);
+        color: var(--ink);
+        font-family:
+          Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+          sans-serif;
+      }
+
+      .page {
+        width: min(1440px, calc(100% - 40px));
+        margin: 0 auto;
+        padding: 28px 0 40px;
+      }
+
+      header {
+        padding: 0 0 22px;
+        border-bottom: 1px solid var(--line);
+      }
+
+      .challenge-kicker {
+        margin: 0 0 18px;
+        color: var(--green);
+        font-size: 12px;
+        font-weight: 800;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+
+      h1 {
+        margin: 0;
+        font-size: 52px;
+        line-height: 1.05;
+        letter-spacing: 0;
+      }
+
+      .hero-line {
+        max-width: 980px;
+        margin: 12px 0 0;
+        color: #2f3b47;
+        font-size: 23px;
+        font-weight: 650;
+        line-height: 1.35;
+      }
+
+      .subtitle {
+        max-width: 920px;
+        margin: 10px 0 0;
+        color: var(--muted);
+        font-size: 16px;
+        line-height: 1.55;
+      }
+
+      .section-grid {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 16px;
+        margin: 22px 0;
+      }
+
+      .section-card,
+      .wide-card,
+      .board-card {
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: var(--panel);
+        box-shadow: 0 10px 24px rgba(31, 41, 51, 0.06);
+      }
+
+      .section-card,
+      .wide-card {
+        padding: 18px;
+      }
+
+      h2 {
+        margin: 0 0 10px;
+        color: #2f3b47;
+        font-size: 15px;
+        letter-spacing: 0.02em;
+        text-transform: uppercase;
+      }
+
+      p {
+        margin: 0;
+        color: var(--muted);
+        font-size: 14px;
+        line-height: 1.55;
+      }
+
+      p + p {
+        margin-top: 10px;
+      }
+
+      .wide-card {
+        margin-bottom: 22px;
+      }
+
+      .feature-list {
+        columns: 2;
+        column-gap: 34px;
+        margin: 0;
+        padding-left: 18px;
+        color: var(--muted);
+        font-size: 14px;
+        line-height: 1.55;
+      }
+
+      .feature-list li {
+        break-inside: avoid;
+        margin-bottom: 7px;
+      }
+
+      .agents {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 12px;
+      }
+
+      .challenge-grid {
+        display: grid;
+        gap: 0;
+        margin-top: 18px;
+        border-top: 1px solid var(--line);
+        border-bottom: 1px solid var(--line);
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+      }
+
+      .challenge-point {
+        padding: 16px 18px;
+        border-right: 1px solid var(--line);
+      }
+
+      .challenge-point:last-child {
+        border-right: 0;
+      }
+
+      .challenge-point strong {
+        display: block;
+        margin-bottom: 7px;
+        color: #2f3b47;
+        font-size: 13px;
+      }
+
+      .challenge-point span {
+        display: block;
+        color: var(--muted);
+        font-size: 12px;
+        line-height: 1.5;
+      }
+
+      .audience-columns {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        margin-top: 18px;
+        border-top: 1px solid var(--line);
+        border-bottom: 1px solid var(--line);
+      }
+
+      .audience-block {
+        padding: 18px;
+        border-right: 1px solid var(--line);
+      }
+
+      .audience-block:last-child {
+        border-right: 0;
+      }
+
+      .audience-block h3 {
+        margin: 0 0 10px;
+        color: #2f3b47;
+        font-size: 14px;
+      }
+
+      .audience-list {
+        margin: 0;
+        padding-left: 18px;
+        color: var(--muted);
+        font-size: 13px;
+        line-height: 1.55;
+      }
+
+      .audience-list li + li {
+        margin-top: 7px;
+      }
+
+      .audience-note {
+        margin-top: 14px;
+        color: #2f3b47;
+        font-size: 13px;
+        font-weight: 650;
+      }
+
+      .agent {
+        min-height: 112px;
+        padding: 13px;
+        border: 1px solid rgba(215, 203, 184, 0.9);
+        border-radius: 8px;
+        background: #fffdfa;
+      }
+
+      .agent strong {
+        display: block;
+        margin-bottom: 6px;
+        color: #2f3b47;
+        font-size: 13px;
+      }
+
+      .agent span {
+        display: block;
+        color: var(--muted);
+        font-size: 12px;
+        line-height: 1.45;
+      }
+
+      .board-card {
+        overflow: hidden;
+      }
+
+      .board-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        padding: 16px 18px;
+        border-bottom: 1px solid var(--line);
+      }
+
+      .legend {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+        gap: 8px;
+      }
+
+      .chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        padding: 7px 10px;
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        background: #fffdfa;
+        color: #4b5563;
+        font-size: 12px;
+        white-space: nowrap;
+      }
+
+      .dot {
+        width: 9px;
+        height: 9px;
+        border-radius: 999px;
+      }
+
+      #excalidraw {
+        height: 780px;
+        background: #fffdfa;
+        pointer-events: none;
+      }
+
+      #excalidraw .layer-ui__wrapper,
+      #excalidraw .App-menu,
+      #excalidraw .App-toolbar,
+      #excalidraw .FixedSideContainer,
+      #excalidraw .help-icon {
+        display: none !important;
+      }
+
+      .fallback {
+        display: block;
+        padding: 24px;
+        border-top: 1px solid var(--line);
+      }
+
+      .fallback.hide {
+        display: none;
+      }
+
+      .fallback-grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(190px, 1fr));
+        gap: 16px;
+      }
+
+      .fb-card {
+        min-height: 108px;
+        padding: 14px;
+        border: 1px solid #d9c9b2;
+        border-radius: 8px;
+        background: #fffdfa;
+      }
+
+      .fb-card.input {
+        border-color: var(--blue);
+        background: #e8f1f7;
+      }
+
+      .fb-card.agent {
+        border-color: var(--green);
+        background: #eaf4ee;
+      }
+
+      .fb-card.data {
+        border-color: var(--gold);
+        background: #fff3d6;
+      }
+
+      .fb-card.output {
+        border-color: var(--red);
+        background: #fbe8e8;
+      }
+
+      .fb-card strong {
+        display: block;
+        margin-bottom: 6px;
+        font-size: 13px;
+      }
+
+      .fb-card span {
+        display: block;
+        color: var(--muted);
+        font-size: 12px;
+        line-height: 1.45;
+      }
+
+      @media (max-width: 1100px) {
+        .section-grid,
+        .agents {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .feature-list {
+          columns: 1;
+        }
+
+        .challenge-grid,
+        .audience-columns {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+      }
+
+      @media (max-width: 720px) {
+        .page {
+          width: min(100% - 24px, 1440px);
+          padding-top: 20px;
+        }
+
+        .section-grid,
+        .agents,
+        .fallback-grid,
+        .challenge-grid,
+        .audience-columns {
+          grid-template-columns: 1fr;
+        }
+
+        h1 {
+          font-size: 36px;
+        }
+
+        .hero-line {
+          font-size: 19px;
+        }
+
+        .challenge-point {
+          border-right: 0;
+          border-bottom: 1px solid var(--line);
+        }
+
+        .challenge-point:last-child {
+          border-bottom: 0;
+        }
+
+        .audience-block {
+          border-right: 0;
+          border-bottom: 1px solid var(--line);
+        }
+
+        .audience-block:last-child {
+          border-bottom: 0;
+        }
+
+        .board-header {
+          display: block;
+        }
+
+        .legend {
+          justify-content: flex-start;
+          margin-top: 12px;
+        }
+
+        #excalidraw {
+          height: 680px;
+        }
+      }
+    </style>
+    <script>
+      window.EXCALIDRAW_ASSET_PATH = "https://esm.sh/@excalidraw/excalidraw@0.18.0/dist/prod/";
+    </script>
+    <script type="importmap">
+      {
+        "imports": {
+          "react": "https://esm.sh/react@19.0.0",
+          "react/jsx-runtime": "https://esm.sh/react@19.0.0/jsx-runtime",
+          "react-dom": "https://esm.sh/react-dom@19.0.0",
+          "react-dom/client": "https://esm.sh/react-dom@19.0.0/client"
+        }
+      }
+    </script>
+  </head>
+  <body>
+    <div class="page">
+      <header>
+        <p class="challenge-kicker">Slack Agent Builder Challenge 2026 / New Slack Agent</p>
+        <h1>Homelander</h1>
+        <p class="hero-line">Trade intelligence that starts and finishes in Slack.</p>
+        <p class="subtitle">
+          Homelander turns a shipment question into a sourced decision packet. It gathers
+          missing details, researches trade and logistics signals through MCP-powered tools,
+          calculates landed cost, and returns a concise answer with evidence and a versioned report.
+        </p>
+      </header>
+
+      <section class="section-grid" aria-label="Project overview">
+        <article class="section-card">
+          <h2>The Idea</h2>
+          <p>
+            Homelander is a Slack-native international trade intelligence agent for teams
+            planning cross-border shipments. A user sends the product, origin, destination,
+            shipment mode, timing, weight, and value in a direct message or mention. Homelander
+            asks for anything missing and turns the conversation into structured shipment data.
+          </p>
+          <p>
+            It coordinates specialist agents to research routes, ports, customs, tariffs,
+            required documents, freight conditions, weather, policy changes, and supply-chain
+            risk. Deterministic code calculates landed cost and weighted risk. Homelander then
+            replies in the same Slack thread with a concise recommendation, a temporary evidence
+            file, and a permanent versioned PDF report containing sources and assumptions.
+          </p>
+        </article>
+        <article class="section-card">
+          <h2>Why It Matters</h2>
+          <p>
+            A cross-border shipping decision can require customs databases, port updates,
+            freight signals, weather, policy changes, commodity exposure, and cost models.
+            Teams often collect those pieces manually while the decision window keeps moving.
+          </p>
+          <p>
+            Homelander brings that work into one familiar conversation. The team gets a clear
+            recommendation while every important claim stays tied to evidence.
+          </p>
+        </article>
+        <article class="section-card">
+          <h2>Why Slack</h2>
+          <p>
+            Shipment decisions already happen between operations, finance, procurement, and
+            leadership in Slack. Homelander meets the team there, keeps context in the current
+            thread, and returns a compact answer that can be discussed immediately.
+          </p>
+          <p>
+            No new dashboard is required. The Slack summary and full report come from the same
+            structured model, so the quick answer and the detailed record stay consistent.
+          </p>
+        </article>
+      </section>
+
+      <section class="wide-card">
+        <h2>Who We Built It For</h2>
+        <p>
+          Homelander is designed for small and mid-sized manufacturers, importers,
+          distributors, and retailers that handle recurring international shipments and
+          coordinate decisions in Slack. These companies need reliable trade research but
+          may not have a large in-house customs, logistics, or trade intelligence function.
+        </p>
+        <div class="audience-columns">
+          <div class="audience-block">
+            <h3>Target Slack teams</h3>
+            <ul class="audience-list">
+              <li>Import, export, and trade operations teams managing active shipments.</li>
+              <li>Supply chain and logistics teams comparing routes, ports, delays, and documents.</li>
+              <li>Procurement teams evaluating shipment feasibility and landed cost for approved products and vendors.</li>
+              <li>Finance teams reviewing duties, taxes, freight assumptions, and total landed cost.</li>
+              <li>Customs and trade compliance teams reviewing classifications, requirements, and risk.</li>
+            </ul>
+          </div>
+          <div class="audience-block">
+            <h3>Target Slack users</h3>
+            <ul class="audience-list">
+              <li>Trade operations managers and import or export coordinators.</li>
+              <li>Logistics coordinators and supply chain analysts.</li>
+              <li>Procurement managers working on approved shipment plans.</li>
+              <li>Landed-cost analysts, finance analysts, and controllers.</li>
+              <li>Customs specialists and trade compliance managers.</li>
+              <li>Heads of supply chain, operations directors, and COOs reviewing the final recommendation.</li>
+            </ul>
+          </div>
+        </div>
+        <p class="audience-note">
+          The daily user is usually a trade operations or logistics lead. Finance,
+          procurement, compliance, and leadership join the same Slack thread as reviewers.
+        </p>
+      </section>
+
+      <section class="wide-card">
+        <h2>Built for the Challenge</h2>
+        <p>
+          The project fits the New Slack Agent track and uses MCP integration to surface
+          intelligent trade insights inside Slack. Its design maps directly to the challenge's
+          four judging areas.
+        </p>
+        <div class="challenge-grid">
+          <div class="challenge-point"><strong>Technological implementation</strong><span>TypeScript orchestration, Slack events, MCP retrieval, structured model outputs, deterministic calculations, and generated reports.</span></div>
+          <div class="challenge-point"><strong>Design</strong><span>A focused thread workflow with concise progress messages, clarifying questions, evidence links, and a complete report.</span></div>
+          <div class="challenge-point"><strong>Potential impact</strong><span>Trade teams can move from scattered research to a reviewable decision packet without leaving their daily workspace.</span></div>
+          <div class="challenge-point"><strong>Quality of the idea</strong><span>Specialist agents gather the signals, while deterministic code owns the numbers and every final claim remains reviewable.</span></div>
+        </div>
+      </section>
+
+      <section class="wide-card">
+        <h2>Core Features</h2>
+        <ul class="feature-list">
+          <li>Slack-native shipment intake in DMs and explicit mention threads.</li>
+          <li>Clarifying questions for missing or ambiguous shipment fields.</li>
+          <li>Public-web retrieval with source URLs, snippets, and search logs.</li>
+          <li>Product profiling with HS candidates, materials, and cost dependencies.</li>
+          <li>Route and port comparison with congestion and wait-time signals.</li>
+          <li>Tariff, customs, and documentation findings with verification warnings.</li>
+          <li>Risk analysis across commodity, freight, port, weather, geopolitical, supplier, and regulatory categories.</li>
+          <li>Deterministic landed-cost calculations kept outside the LLM.</li>
+          <li>Concise Slack summary plus complete versioned HTML and PDF reports.</li>
+          <li>Temporary evidence file with assumptions, sources, excerpts, calculations, and timestamps.</li>
+          <li>Follow-up Q&A against the current thread and completed report context.</li>
+          <li>Human-approved next actions with no autonomous booking, filing, or purchasing.</li>
+        </ul>
+      </section>
+
+      <section class="wide-card">
+        <h2>Trust by Design</h2>
+        <p>
+          Homelander supports a human decision. It does not book freight, file customs entries,
+          make purchases, change routes, or present research as binding legal or tax advice.
+        </p>
+        <div class="challenge-grid">
+          <div class="challenge-point"><strong>Evidence first</strong><span>Sources, excerpts, assumptions, confidence, and retrieval times travel with the analysis.</span></div>
+          <div class="challenge-point"><strong>Numbers stay deterministic</strong><span>Landed cost and weighted risk calculations run in code, outside the language model.</span></div>
+          <div class="challenge-point"><strong>Context stays focused</strong><span>The MVP responds to DMs and explicit mentions and reads only the originating Slack thread.</span></div>
+          <div class="challenge-point"><strong>People stay in control</strong><span>External or consequential actions require human review and confirmation.</span></div>
+        </div>
+      </section>
+
+      <section class="wide-card">
+        <h2>Multiagent System</h2>
+        <div class="agents">
+          <div class="agent"><strong>Message Router</strong><span>Classifies Slack messages into help, trade question, or shipment analysis intake.</span></div>
+          <div class="agent"><strong>Shipment Intake Agent</strong><span>Extracts product, lane, weight, date, mode, value, and requirements.</span></div>
+          <div class="agent"><strong>Product & Material Agent</strong><span>Identifies product category, HS candidates, materials, dependencies, and evidence sources.</span></div>
+          <div class="agent"><strong>Port Recommendation Agent</strong><span>Scores candidate ports by congestion, wait days, and route impact.</span></div>
+          <div class="agent"><strong>Tariff & Regulation Agent</strong><span>Estimates HS treatment, duties, documents, customs notes, and caveats.</span></div>
+          <div class="agent"><strong>Commodity Intelligence Agent</strong><span>Assesses raw-material and commodity price exposure.</span></div>
+          <div class="agent"><strong>Freight Intelligence Agent</strong><span>Checks freight rates, capacity, and transport disruption signals.</span></div>
+          <div class="agent"><strong>Port Intelligence Agent</strong><span>Assesses congestion, vessel queues, dwell time, and throughput risk.</span></div>
+          <div class="agent"><strong>Weather Intelligence Agent</strong><span>Looks for storms, seasonal disruption, and route weather risk.</span></div>
+          <div class="agent"><strong>Geopolitical Intelligence Agent</strong><span>Reviews sanctions, trade restrictions, conflict, diversions, and policy risk.</span></div>
+          <div class="agent"><strong>Supplier Intelligence Agent</strong><span>Checks manufacturing health, PMI, factory disruption, and supplier-side risk.</span></div>
+          <div class="agent"><strong>Regulatory Intelligence Agent</strong><span>Looks for classification changes, import controls, document changes, and compliance risk.</span></div>
+          <div class="agent"><strong>Commodity Price Agent</strong><span>Turns materials and dependencies into cost drivers and forecast impact.</span></div>
+          <div class="agent"><strong>Synthesis Engine</strong><span>Combines outputs into route comparison, risk score, alerts, recommendations, and landed cost.</span></div>
+          <div class="agent"><strong>Executive Summary Agent</strong><span>Creates the concise Slack-ready decision summary.</span></div>
+          <div class="agent"><strong>Action Plan Agent</strong><span>Prioritizes follow-up actions that still require human confirmation.</span></div>
+        </div>
+      </section>
+
+      <section class="board-card">
+        <div class="board-header">
+          <div>
+            <h2>Submission Architecture Diagram</h2>
+            <p>The complete read-only system flow from Slack request to cited decision packet.</p>
+          </div>
+          <div class="legend" aria-label="Flowchart legend">
+            <span class="chip"><span class="dot" style="background: var(--blue)"></span>Input and routing</span>
+            <span class="chip"><span class="dot" style="background: var(--green)"></span>Agents</span>
+            <span class="chip"><span class="dot" style="background: var(--gold)"></span>Data and calculations</span>
+            <span class="chip"><span class="dot" style="background: var(--red)"></span>Outputs and controls</span>
+          </div>
+        </div>
+        <div id="excalidraw"></div>
+        <div class="fallback" id="fallback">
+          <div class="fallback-grid">
+            <div class="fb-card input"><strong>1. Slack Event</strong><span>DM or explicit mention enters the Hono Slack events route.</span></div>
+            <div class="fb-card input"><strong>2. Message Router</strong><span>Classify help, question, or analysis request.</span></div>
+            <div class="fb-card agent"><strong>3. Intake Agent</strong><span>Extract shipment fields and ask clarifying questions until ready.</span></div>
+            <div class="fb-card agent"><strong>4. Orchestrator</strong><span>Coordinate all agents, source logs, calculations, and final result.</span></div>
+            <div class="fb-card agent"><strong>5. Product Agent</strong><span>Find category, HS candidates, materials, dependencies, and sources.</span></div>
+            <div class="fb-card data"><strong>6. Bright Data and SERP</strong><span>Retrieve public sources with live MCP or mock fallback.</span></div>
+            <div class="fb-card agent"><strong>7. Port Agent</strong><span>Score candidate ports by congestion, wait days, and route impact.</span></div>
+            <div class="fb-card agent"><strong>8. Tariff Agent</strong><span>Estimate HS treatment, duties, documents, and caveats.</span></div>
+            <div class="fb-card agent"><strong>9. Intel Agents</strong><span>Commodity, freight, port, weather, geopolitical, supplier, and regulatory risk.</span></div>
+            <div class="fb-card data"><strong>10. Synthesis Engine</strong><span>Build routes, alerts, recommendations, delays, and landed cost.</span></div>
+            <div class="fb-card data"><strong>11. Report Model</strong><span>One structured model powers Slack, evidence, HTML, and PDF.</span></div>
+            <div class="fb-card output"><strong>12. Evidence File</strong><span>Temporary text artifact with sources, assumptions, excerpts, and timestamps.</span></div>
+            <div class="fb-card output"><strong>13. Versioned Reports</strong><span>Permanent HTML and PDF reports saved under report ID.</span></div>
+            <div class="fb-card output"><strong>14. Slack Summary</strong><span>Post the concise summary and links in the originating thread.</span></div>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <script type="module">
+      import React from "react";
+      import { createRoot } from "react-dom/client";
+      import {
+        Excalidraw,
+        convertToExcalidrawElements
+      } from "https://esm.sh/@excalidraw/excalidraw@0.18.0/dist/dev/index.js?external=react,react-dom";
+
+      const colors = {
+        input: { stroke: "#355c7d", fill: "#e8f1f7" },
+        agent: { stroke: "#477a63", fill: "#eaf4ee" },
+        data: { stroke: "#a56b22", fill: "#fff3d6" },
+        output: { stroke: "#a34848", fill: "#fbe8e8" }
+      };
+
+      const nodes = [
+        { x: 40, y: 55, w: 220, h: 90, group: "input", text: "Slack event\nDM or explicit mention" },
+        { x: 330, y: 55, w: 250, h: 90, group: "input", text: "Message router\nHelp, question, or analysis" },
+        { x: 650, y: 15, w: 250, h: 90, group: "agent", text: "Q&A agent\nAnswers from report context" },
+        { x: 650, y: 135, w: 250, h: 100, group: "agent", text: "Shipment intake agent\nExtracts required shipment fields" },
+        { x: 970, y: 135, w: 250, h: 100, group: "input", text: "Clarifying questions\nCollect missing or unclear details" },
+        { x: 650, y: 275, w: 250, h: 90, group: "output", text: "Slack run notice\nAnalysis started in thread" },
+        { x: 970, y: 275, w: 280, h: 90, group: "agent", text: "Analysis orchestrator\nCoordinates research and calculations" },
+        { x: 1290, y: 275, w: 280, h: 90, group: "data", text: "Retrieval layer\nOfficial sources, Bright Data, SERP" },
+
+        { x: 40, y: 490, w: 300, h: 90, group: "agent", text: "Product and material agent\nCategory, HS candidates, materials" },
+        { x: 380, y: 490, w: 300, h: 90, group: "agent", text: "Tariff and regulation agent\nDuty, customs, documents, caveats" },
+        { x: 720, y: 490, w: 300, h: 90, group: "agent", text: "Port recommendation agent\nOptions, congestion, wait time" },
+        { x: 1060, y: 490, w: 300, h: 90, group: "agent", text: "Commodity intelligence agent\nRaw material price exposure" },
+        { x: 1400, y: 490, w: 300, h: 90, group: "agent", text: "Freight intelligence agent\nRates, capacity, disruption" },
+        { x: 40, y: 640, w: 300, h: 90, group: "agent", text: "Port intelligence agent\nQueues, dwell time, throughput" },
+        { x: 380, y: 640, w: 300, h: 90, group: "agent", text: "Weather intelligence agent\nStorms and seasonal disruption" },
+        { x: 720, y: 640, w: 300, h: 90, group: "agent", text: "Geopolitical intelligence agent\nRestrictions, conflict, policy risk" },
+        { x: 1060, y: 640, w: 300, h: 90, group: "agent", text: "Supplier intelligence agent\nManufacturing and factory risk" },
+        { x: 1400, y: 640, w: 300, h: 90, group: "agent", text: "Regulatory intelligence agent\nControls and compliance changes" },
+
+        { x: 110, y: 820, w: 280, h: 90, group: "data", text: "Weighted risk score\nDeterministic category scoring" },
+        { x: 450, y: 820, w: 280, h: 90, group: "data", text: "Route calculations\nDistance, delay, route comparison" },
+        { x: 790, y: 820, w: 280, h: 90, group: "data", text: "Landed cost engine\nDeterministic financial model" },
+        { x: 1130, y: 810, w: 330, h: 110, group: "data", text: "Synthesis engine\nRoutes, risks, alerts, recommendations" },
+        { x: 1510, y: 770, w: 250, h: 90, group: "agent", text: "Executive summary agent\nConcise Slack decision brief" },
+        { x: 1510, y: 890, w: 250, h: 90, group: "agent", text: "Action plan agent\nHuman-approved next steps" },
+
+        { x: 40, y: 1040, w: 280, h: 90, group: "data", text: "Structured report model\nOne source for every output" },
+        { x: 370, y: 1040, w: 280, h: 90, group: "output", text: "Evidence file\nSources, excerpts, assumptions" },
+        { x: 700, y: 1040, w: 280, h: 90, group: "output", text: "Versioned reports\nPermanent HTML and PDF records" },
+        { x: 1030, y: 1040, w: 280, h: 90, group: "output", text: "Slack reply\nSummary, report, evidence links" },
+        { x: 1360, y: 1040, w: 300, h: 90, group: "input", text: "Follow-up loop\nAsk questions or restart intake" }
+      ];
+
+      const arrows = [
+        [[260, 100], [330, 100]],
+        [[580, 85], [615, 85], [615, 60], [650, 60]],
+        [[900, 60], [1785, 60], [1785, 1005], [1170, 1005], [1170, 1040]],
+        [[580, 115], [615, 115], [615, 185], [650, 185]],
+        [[900, 185], [970, 185]],
+        [[1095, 235], [1095, 255], [775, 255], [775, 235]],
+        [[775, 235], [775, 275]], [[900, 320], [970, 320]], [[1250, 320], [1290, 320]],
+        [[1430, 365], [1430, 430]], [[1110, 365], [1110, 430]],
+        [[190, 430], [1550, 430]],
+        [[190, 430], [190, 490]], [[530, 430], [530, 490]], [[870, 430], [870, 490]],
+        [[1210, 430], [1210, 490]], [[1550, 430], [1550, 490]],
+        [[190, 580], [190, 640]], [[530, 580], [530, 640]], [[870, 580], [870, 640]],
+        [[1210, 580], [1210, 640]], [[1550, 580], [1550, 640]],
+        [[190, 730], [190, 770], [1460, 770]], [[530, 730], [530, 770]],
+        [[870, 730], [870, 770]], [[1210, 730], [1210, 770]],
+        [[1550, 730], [1550, 750], [1295, 750], [1295, 810]],
+        [[250, 770], [250, 820]], [[590, 770], [590, 820]], [[930, 770], [930, 820]],
+        [[250, 910], [250, 950], [1295, 950], [1295, 920]],
+        [[590, 910], [590, 950], [1295, 950], [1295, 920]],
+        [[930, 910], [930, 950], [1295, 950], [1295, 920]],
+        [[1460, 845], [1510, 815]], [[1460, 885], [1510, 935]],
+        [[1295, 920], [1295, 1005], [180, 1005], [180, 1040]],
+        [[1635, 980], [1635, 1005], [180, 1005]],
+        [[320, 1085], [370, 1085]], [[650, 1085], [700, 1085]],
+        [[980, 1085], [1030, 1085]], [[1310, 1085], [1360, 1085]],
+        [[1660, 1085], [1735, 1085], [1735, 1015], [1635, 1015], [1635, 980]]
+      ];
+
+      function wrapLine(line, maxChars) {
+        const words = line.trim().split(/\s+/);
+        const lines = [];
+        let current = "";
+
+        for (const word of words) {
+          const next = current ? `${current} ${word}` : word;
+          if (current && next.length > maxChars) {
+            lines.push(current);
+            current = word;
+          } else {
+            current = next;
+          }
+        }
+
+        if (current) lines.push(current);
+        return lines.join("\n");
+      }
+
+      function cardLabel(node) {
+        const maxChars = Math.max(16, Math.floor((node.w - 70) / 7.8));
+        return node.text
+          .split("\n")
+          .map((line) => wrapLine(line, maxChars))
+          .join("\n");
+      }
+
+      function buildScene() {
+        const elements = [];
+
+        for (const route of arrows) {
+          const [start, ...rest] = route;
+          elements.push({
+            type: "arrow",
+            x: start[0],
+            y: start[1],
+            points: [[0, 0], ...rest.map(([x, y]) => [x - start[0], y - start[1]])],
+            strokeColor: "#78838f",
+            backgroundColor: "transparent",
+            endArrowhead: "arrow",
+            roughness: 0,
+            strokeWidth: 1.5
+          });
+        }
+
+        for (const node of nodes) {
+          const color = colors[node.group];
+          elements.push({
+            type: "rectangle",
+            x: node.x,
+            y: node.y,
+            width: node.w,
+            height: node.h,
+            strokeColor: color.stroke,
+            backgroundColor: color.fill,
+            fillStyle: "solid",
+            roughness: 0,
+            strokeWidth: 2,
+            roundness: { type: 3 },
+            label: {
+              text: cardLabel(node),
+              fontSize: 14,
+              fontFamily: 2,
+              textAlign: "center",
+              verticalAlign: "middle"
+            }
+          });
+        }
+
+        for (const label of [
+          { x: 40, y: 5, text: "01  INTAKE AND ROUTING" },
+          { x: 40, y: 400, text: "02  PARALLEL RESEARCH" },
+          { x: 40, y: 790, text: "03  CALCULATE AND SYNTHESIZE" },
+          { x: 40, y: 990, text: "04  REPORT AND RESPOND" }
+        ]) {
+          elements.push({
+            type: "text",
+            x: label.x,
+            y: label.y,
+            text: label.text,
+            fontSize: 14,
+            fontFamily: 2,
+            strokeColor: "#5e6874"
+          });
+        }
+
+        return convertToExcalidrawElements(elements);
+      }
+
+      function App() {
+        const scene = React.useMemo(() => buildScene(), []);
+        const fallback = document.getElementById("fallback");
+        return React.createElement(Excalidraw, {
+          viewModeEnabled: true,
+          zenModeEnabled: true,
+          initialData: {
+            elements: scene,
+            appState: {
+              viewBackgroundColor: "#fffdfa",
+              zenModeEnabled: true,
+              viewModeEnabled: true,
+              scrollX: 120,
+              scrollY: 80,
+              zoom: { value: 0.7 }
+            },
+            scrollToContent: true
+          },
+          excalidrawAPI: (api) => {
+            if (!api) return;
+            window.setTimeout(() => {
+              try {
+                api.updateScene({
+                  elements: scene,
+                  appState: {
+                    viewBackgroundColor: "#fffdfa",
+                    zenModeEnabled: true,
+                    viewModeEnabled: true
+                  }
+                });
+                if (typeof api.scrollToContent === "function") {
+                  try {
+                    api.scrollToContent(scene, {
+                      fitToContent: true,
+                      viewportZoomFactor: 0.96
+                    });
+                  } catch {
+                    api.scrollToContent(scene);
+                  }
+                }
+                fallback.classList.add("hide");
+              } catch (error) {
+                console.error(error);
+                fallback.classList.remove("hide");
+              }
+            }, 120);
+          },
+          UIOptions: {
+            canvasActions: {
+              changeViewBackgroundColor: false,
+              clearCanvas: false,
+              export: false,
+              loadScene: false,
+              saveAsImage: false,
+              saveToActiveFile: false,
+              toggleTheme: false
+            }
+          }
+        });
+      }
+
+      try {
+        createRoot(document.getElementById("excalidraw")).render(React.createElement(App));
+      } catch (error) {
+        console.error(error);
+        document.getElementById("fallback").classList.remove("hide");
+      }
+    </script>
+  </body>
+</html>
