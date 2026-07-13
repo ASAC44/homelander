@@ -1,35 +1,46 @@
 % ----------------------------------------------------------------------
-% Homelander Trade Intelligence Report - Executive Memo Template
+% Homelander Trade Intelligence Report
 % ----------------------------------------------------------------------
-\documentclass[11pt,a4paper]{article}
+\documentclass[10pt,a4paper]{article}
 
 % --- Page geometry
-\usepackage[top=1.7cm,bottom=2.2cm,left=1.8cm,right=1.8cm]{geometry}
+\usepackage[top=1.55cm,bottom=1.9cm,left=1.55cm,right=1.55cm]{geometry}
 
-% --- Encoding & fonts
-
-% --- Tables
+% --- Tables and layout
 \usepackage{booktabs}
 \usepackage{longtable}
 \usepackage{array}
 \usepackage{tabularx}
 \usepackage{ragged2e}
+\usepackage{multicol}
+
+% --- Typography
+\usepackage{helvet}
+\renewcommand{\familydefault}{\sfdefault}
+\usepackage{microtype}
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{0.42em}
+\renewcommand{\arraystretch}{1.18}
+\sloppy
 
 % --- Colors
 \usepackage[table]{xcolor}
-\definecolor{brandsteel}{HTML}{2E3A43}
+\definecolor{brandsteel}{HTML}{26333D}
 \definecolor{brandcopper}{HTML}{9A5B3F}
-\definecolor{accentblue}{HTML}{2E3A43}
+\definecolor{accentblue}{HTML}{256D85}
+\definecolor{accentteal}{HTML}{168B82}
 \definecolor{warmpaper}{HTML}{FBF8F3}
-\definecolor{warmpanel}{HTML}{F3ECE3}
-\definecolor{linegray}{HTML}{D5CCC1}
-\definecolor{metatext}{HTML}{6D665F}
+\definecolor{warmpanel}{HTML}{F1E8DC}
+\definecolor{whitepanel}{HTML}{FFFFFF}
+\definecolor{linegray}{HTML}{D4C7BA}
+\definecolor{metatext}{HTML}{69615A}
 \definecolor{riskamber}{HTML}{A5661F}
 \definecolor{riskred}{HTML}{9F3A2E}
 \definecolor{riskgreen}{HTML}{43624C}
 
 % --- Hyperlinks
 \usepackage[colorlinks=true,linkcolor=brandcopper,urlcolor=brandcopper,citecolor=brandcopper]{hyperref}
+\Urlmuskip=0mu plus 2mu
 
 % --- Graphics / Charts
 \usepackage{pgfplots}
@@ -52,33 +63,61 @@
 % --- Lists
 \usepackage{enumitem}
 \setlist{nosep,leftmargin=*}
-\setlist[itemize]{label=\textcolor{brandcopper}{--}}
+\setlist[itemize]{label=\textcolor{brandcopper}{-}}
+
+% --- Section style
+\usepackage{titlesec}
+\titleformat{\section}{\Large\bfseries\color{brandsteel}}{\thesection}{0.55em}{}
+\titleformat{\subsection}{\large\bfseries\color{brandsteel}}{\thesubsection}{0.45em}{}
+\titlespacing*{\section}{0pt}{1.05em}{0.55em}
+\titlespacing*{\subsection}{0pt}{0.85em}{0.35em}
 
 % --- Custom commands
+\setlength{\fboxsep}{7pt}
+\setlength{\fboxrule}{0.5pt}
 \newcommand{\reportfield}[1]{\textcolor{metatext}{\small\textsf{#1}}}
-\newcommand{\accentline}{\textcolor{brandcopper}{\rule{\textwidth}{0.8pt}}}
+\newcommand{\accentline}{\textcolor{brandcopper}{\rule{\linewidth}{0.8pt}}}
+\newcommand{\sectionlabel}[1]{\textcolor{brandcopper}{\small\textsf{\MakeUppercase{#1}}}}
 \newcommand{\panel}[1]{%
-  \fcolorbox{linegray}{warmpaper}{%
-    \begin{minipage}{0.965\textwidth}
+  \fcolorbox{linegray}{whitepanel}{%
+    \begin{minipage}{0.965\linewidth}
+      #1
+    \end{minipage}
+  }%
+}
+\newcommand{\softpanel}[1]{%
+  \fcolorbox{linegray}{warmpanel}{%
+    \begin{minipage}{0.965\linewidth}
       #1
     \end{minipage}
   }%
 }
 \newcommand{\metriccard}[2]{%
-  \fcolorbox{linegray}{warmpanel}{%
-    \begin{minipage}[t][2.35cm][t]{0.47\textwidth}
-      {\reportfield{#1}}\\[0.4em]
-      {\Large\bfseries\color{brandsteel} #2}
+  \fcolorbox{linegray}{whitepanel}{%
+    \begin{minipage}[t][2.05cm][t]{0.455\linewidth}
+      {\reportfield{#1}}\\[0.35em]
+      {\large\bfseries\color{brandsteel}\RaggedRight #2}
     \end{minipage}
   }%
 }
-\newcommand{\sectionlabel}[1]{\textcolor{brandcopper}{\small\textsf{\MakeUppercase{#1}}}}
-\newcommand{\disclaimertable}{
-  \fcolorbox{linegray}{warmpanel}{
-    \begin{minipage}{0.965\textwidth}
-      {\color{riskred}\textbf{Verification note:}} This report is AI-generated decision-support. It does not constitute legal, customs, tax, or freight-booking advice. Verify all information with qualified professionals before acting.
+\newcommand{\driverpanel}[4]{%
+  \fcolorbox{linegray}{whitepanel}{%
+    \begin{minipage}{0.93\linewidth}
+      {\bfseries #1}\hfill{\scriptsize\textcolor{metatext}{#2 impact | #3}}\\[0.25em]
+      #4
     \end{minipage}
-  }
+  }%
+}
+\newcommand{\riskdetail}[4]{%
+  \panel{%
+    {\bfseries #1}\hfill{\small #2 \quad #3}\\[0.35em]
+    #4
+  }%
+}
+\newcommand{\disclaimertable}{%
+  \softpanel{%
+    {\color{riskred}\textbf{Verification note:}} This report is AI-generated decision support. It does not constitute legal, customs, tax, compliance, or freight-booking advice. Verify HS classification, duty treatment, documentation, and routing with qualified professionals before acting.
+  }%
 }
 
 % ----------------------------------------------------------------------
@@ -86,79 +125,141 @@
 \pagecolor{warmpaper}
 \color{brandsteel}
 
-% ===== Memo Header =====
+% ===== Cover / Executive Dashboard =====
 \thispagestyle{empty}
-{\Huge\bfseries Homelander}\\[0.2em]
-{\Large Trade Intelligence Memo}\\[0.8em]
-\accentline\\[0.9em]
+{\Huge\bfseries Homelander}\\[-0.1em]
+{\Large Trade Intelligence Report}\\[0.45em]
+\accentline\\[0.65em]
 
 \panel{
-  {\sectionlabel{Shipment Lane}}\\[0.35em]
-  {\Large\bfseries {{REPORT_TITLE}}}\\[0.35em]
-  \reportfield{Lane: {{SHIPMENT_LANE}} \quad Report ID: {{REPORT_ID}} \quad Version: {{REPORT_VERSION}}}\\[0.2em]
-  \reportfield{Generated: {{GENERATED_TIMESTAMP}} \quad Data mode: {{DATA_MODE}}}
+  {\sectionlabel{Shipment Lane}}\\[0.25em]
+  {\LARGE\bfseries {{REPORT_TITLE}}}\\[0.35em]
+  \reportfield{Lane: {{SHIPMENT_LANE}} \quad Report ID: {{REPORT_ID}}}\\
+  \reportfield{Version: {{REPORT_VERSION}} \quad Generated: {{GENERATED_TIMESTAMP}} \quad Data mode: {{DATA_MODE}}}
 }
 
-\vspace{0.9em}
+\vspace{0.75em}
 {{DECISION_PANEL}}
 
-\vspace{0.9em}
+\vspace{0.75em}
 {{KPI_CARDS}}
 
-\vspace{0.9em}
+\vspace{0.75em}
 {{RISK_SNAPSHOT}}
 
-\vspace{0.9em}
+\vspace{0.75em}
+\subsection*{Recommended Actions}
+{{EXECUTIVE_ACTIONS_SECTION}}
+
+\subsection*{Active Alerts}
+{{ALERTS_SECTION}}
+
+\vfill
 \disclaimertable
 
 \newpage
 
-% ===== 1. Shipment Snapshot =====
-\section{Shipment Snapshot}
+% ===== 1. Shipment, Commodity, Completeness =====
+\section{Shipment and Commodity Profile}
 
-{{SHIPMENT_TABLE}}
+\begin{minipage}[t]{0.51\textwidth}
+  \subsection*{Shipment Inputs}
+  {{SHIPMENT_TABLE}}
+\end{minipage}
+\hfill
+\begin{minipage}[t]{0.46\textwidth}
+  \subsection*{Commodity Classification}
+  {{COMMODITY_TABLE}}
+\end{minipage}
 
 \vspace{0.8em}
-\begin{minipage}[t]{0.48\textwidth}
+\subsection*{Commodity Exposure}
+{{MATERIAL_CHART_SECTION}}
+
+\vspace{0.7em}
+\begin{minipage}[t]{0.32\textwidth}
   \subsection*{Assumptions}
   {{ASSUMPTIONS_LIST}}
 \end{minipage}
 \hfill
-\begin{minipage}[t]{0.48\textwidth}
+\begin{minipage}[t]{0.32\textwidth}
   \subsection*{Limitations}
   \begin{itemize}
   {{LIMITATIONS_LIST}}
   \end{itemize}
 \end{minipage}
+\hfill
+\begin{minipage}[t]{0.32\textwidth}
+  \subsection*{Open Questions}
+  {{OPEN_QUESTIONS_LIST}}
+\end{minipage}
 
-% ===== 2. Route and Landed Cost =====
-\section{Route and Landed Cost}
+\vspace{0.8em}
+\subsection*{Confidence and Data Quality}
+{{DATA_QUALITY_SECTION}}
+
+\newpage
+
+% ===== 2. Action Plan =====
+\section{Human-Approved Action Plan}
+
+{{ACTION_PLAN_SECTION}}
+
+\vspace{0.7em}
+\softpanel{
+  {\sectionlabel{Control Requirement}}\\[0.25em]
+  External or consequential actions are recommendations only until a human explicitly confirms them. Homelander must not book freight, contact suppliers, file customs entries, change routes, or make binding compliance decisions autonomously.
+}
+
+\newpage
+
+% ===== 3. Route and Port Recommendation =====
+\section{Route and Port Analysis}
+
+\subsection*{Route Geography}
+{{ROUTE_MAP_SECTION}}
+
+\subsection*{Transit Impact}
+{{TRANSIT_IMPACT_SECTION}}
 
 \subsection*{Route Comparison}
 {{ROUTE_TABLE}}
 
-\vspace{0.8em}
+\vspace{0.7em}
 {{ROUTE_CHART_SECTION}}
 
-\vspace{1em}
-\subsection*{Landed Cost}
+\subsection*{AI Port Recommendation}
+{{PORT_RECOMMENDATION_SECTION}}
+
+\subsection*{Port Comparison}
+{{PORT_COMPARISON_SECTION}}
+
+\newpage
+
+% ===== 4. Landed Cost and Forecast =====
+\section{Landed Cost and Cost Outlook}
+
+\subsection*{Deterministic Landed-Cost Breakdown}
 {{LANDED_COST_TABLE}}
 
 \vspace{0.8em}
-\subsection*{Cost Outlook}
-{{COST_FORECAST_SECTION}}
-
-% ===== 3. Risk and Delay Outlook =====
-\newpage
-\section{Risk and Delay Outlook}
-
-{{RISKS_TABLE}}
+{{COST_EXPOSURE_PANEL}}
 
 \vspace{0.8em}
-{{RISK_CHART_SECTION}}
+{{LANDED_COST_CHART_SECTION}}
 
-% ===== 4. Tariff, Customs, and Documents =====
-\section{Tariff, Customs, and Documents}
+\vspace{0.9em}
+\subsection*{30/60/90 Day Cost Forecast}
+{{COST_FORECAST_SECTION}}
+
+\vspace{0.7em}
+\subsection*{Forecast Data Table}
+{{COST_FORECAST_TABLE}}
+
+\newpage
+
+% ===== 5. Customs, Tariff, and Documents =====
+\section{Tariff, Customs, and Documentation}
 
 \subsection*{Tariff Summary}
 {{TARIFF_SECTION}}
@@ -167,30 +268,61 @@
 \subsection*{Documentation Checklist}
 {{DOCUMENTS_TABLE}}
 
-% ===== 5. Market Drivers =====
-\newpage
-\section{Market Drivers}
-
-{{DRIVER_TRENDS_SECTION}}
-
-\vspace{1em}
-\subsection*{Dependency Overview}
-{{DEPENDENCY_GRAPH_SECTION}}
-
-\vspace{1em}
-\subsection*{Port Comparison}
-{{PORT_COMPARISON_SECTION}}
-
-% ===== 6. Sources and Verification =====
-\newpage
-\section{Sources and Verification}
-
-{{SOURCES_SECTION}}
-
-\vspace{1.1em}
+\vspace{0.8em}
 \disclaimertable
 
+\newpage
+
+% ===== 6. Risk Analysis =====
+\section{Risk Analysis}
+
+\subsection*{Risk Matrix}
+{{RISKS_TABLE}}
+
+\vspace{0.8em}
+{{RISK_CHART_SECTION}}
+
+\subsection*{Risk Detail and Evidence Links}
+{{RISK_DETAILS_SECTION}}
+
+\newpage
+
+% ===== 7. Market Drivers and Dependency Map =====
+\section{Market Drivers and Dependencies}
+
+\subsection*{Supply-Chain Driver Tracker}
+{{DRIVER_TRENDS_SECTION}}
+
 \vspace{0.9em}
-{{FINAL_DISCLAIMER}}
+\subsection*{Dependency Graph}
+{{DEPENDENCY_GRAPH_SECTION}}
+
+\subsection*{Driver Time-Series Data}
+{{DRIVER_SERIES_DETAIL_SECTION}}
+
+\subsection*{Driver Source Detail}
+{{DRIVER_SOURCE_DETAIL_SECTION}}
+
+\newpage
+
+% ===== 8. News, Search Transparency, and Sources =====
+\section{News Intelligence}
+
+{{NEWS_SECTION}}
+
+\section{Retrieval Transparency}
+
+\subsection*{Bright Data Search Log}
+{{SEARCH_LOG_SECTION}}
+
+\subsection*{Source Citations}
+{{SOURCES_SECTION}}
+
+\vspace{0.9em}
+\subsection*{Human-Verification Warning}
+\disclaimertable
+
+\vspace{0.75em}
+{\small {{FINAL_DISCLAIMER}}}
 
 \end{document}

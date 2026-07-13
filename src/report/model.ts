@@ -1,11 +1,13 @@
 import type { AnalysisResult } from "../lib/types.js";
 import crypto from "node:crypto";
 
-type ReportSource = {
+export interface ReportSource {
   title: string;
   url: string;
   snippet?: string;
-};
+  category: string;
+  retrievedAt: string;
+}
 
 export interface ReportModel {
   reportId: string;
@@ -36,23 +38,6 @@ export interface ReportModel {
   };
   assumptions: string[];
   missingFields: string[];
-  alerts: Array<{
-    severity: "high" | "medium" | "low";
-    title: string;
-    impact: string;
-  }>;
-  recommendations: Array<{
-    action: string;
-    rationale: string;
-  }>;
-  actionPlan: Array<{
-    action: string;
-    deadline: string;
-    dueDate: string | null;
-    category: string;
-    urgency: "high" | "medium" | "low";
-    why: string;
-  }>;
   routes: Array<{
     method: string;
     cost: number;
@@ -76,6 +61,8 @@ export interface ReportModel {
     additional: Array<{ name: string; ratePct: number }>;
     totalDutyPct: number;
     requirements: string[];
+    goodsValueUsd: number;
+    estimatedDutyUsd: number;
     notes: string;
     sources: ReportSource[];
   } | null;
@@ -131,6 +118,16 @@ export interface ReportModel {
     lng: number | null;
     sources: ReportSource[];
   }>;
+  alerts: Array<{ severity: "high" | "medium" | "low"; title: string; impact: string }>;
+  recommendations: Array<{ action: string; rationale: string }>;
+  actionPlan: Array<{
+    action: string;
+    deadline: string;
+    dueDate: string | null;
+    category: string;
+    urgency: "high" | "medium" | "low";
+    why: string;
+  }>;
   news: ReportSource[];
   searches: Array<{
     agent: string;
@@ -141,6 +138,7 @@ export interface ReportModel {
   sources: ReportSource[];
   confidence: string;
   limitations: string[];
+  openQuestions: string[];
   disclaimer: string;
 }
 
@@ -161,9 +159,6 @@ export function buildReportModel(result: AnalysisResult): ReportModel {
     generatedAt: result.generatedAt,
     dataMode: result.dataMode,
     executiveSummary: result.executiveSummary,
-    riskScore: result.riskScore,
-    expectedCostIncreasePct: result.expectedCostIncreasePct,
-    expectedDelayDays: result.expectedDelayDays,
     commodity: {
       productCategory: result.productCategory,
       hsCodes: result.hsCodes,
@@ -184,23 +179,6 @@ export function buildReportModel(result: AnalysisResult): ReportModel {
     },
     assumptions: extractAssumptions(result),
     missingFields: [],
-    alerts: result.alerts.map((a) => ({
-      severity: a.severity,
-      title: a.title,
-      impact: a.impact,
-    })),
-    recommendations: result.recommendations.map((r) => ({
-      action: r.action,
-      rationale: r.rationale,
-    })),
-    actionPlan: result.actionPlan.map((a) => ({
-      action: a.action,
-      deadline: a.deadline,
-      dueDate: a.dueDate,
-      category: a.category,
-      urgency: a.urgency,
-      why: a.why,
-    })),
     routes: result.routes.map((r) => ({
       method: r.method,
       cost: r.cost,
@@ -227,8 +205,10 @@ export function buildReportModel(result: AnalysisResult): ReportModel {
           additional: result.tariff.additional,
           totalDutyPct: result.tariff.totalDutyPct,
           requirements: result.tariff.requirements,
+          goodsValueUsd: result.tariff.goodsValueUsd,
+          estimatedDutyUsd: result.tariff.estimatedDutyUsd,
           notes: result.tariff.notes,
-          sources: result.tariff.sources.map((s) => ({ title: s.title, url: s.url, snippet: s.snippet })),
+          sources: result.tariff.sources.map((s) => sourceWithMeta(s, "Tariff and customs", result.generatedAt)),
         }
       : null,
     documents: result.tariff?.documents ?? [],
@@ -240,7 +220,7 @@ export function buildReportModel(result: AnalysisResult): ReportModel {
       actionable: r.actionable,
       trend: r.trend,
       keyFindings: r.keyFindings,
-      sources: r.sources.map((s) => ({ title: s.title, url: s.url, snippet: s.snippet })),
+      sources: r.sources.map((s) => sourceWithMeta(s, "Risk intelligence", result.generatedAt)),
     })),
     costForecasts: result.costForecasts.map((c) => ({
       horizonDays: c.horizonDays,
@@ -259,8 +239,8 @@ export function buildReportModel(result: AnalysisResult): ReportModel {
       forecastPct: d.forecastPct,
       forecastNote: d.forecastNote,
       priceLive: d.priceLive,
-      series: d.series.map((p) => ({ t: p.t, v: p.v, f: p.f })),
-      sources: d.sources.map((s) => ({ title: s.title, url: s.url, snippet: s.snippet })),
+      series: buildDriverSeriesForReport(d.series, d.current, d.forecastPct),
+      sources: d.sources.map((s) => sourceWithMeta(s, "Driver intelligence", result.generatedAt)),
     })),
     dependencyGraph: result.dependencyGraph.map((n) => ({
       node: n.node,
@@ -288,23 +268,81 @@ export function buildReportModel(result: AnalysisResult): ReportModel {
       note: o.note,
       lat: o.lat,
       lng: o.lng,
-      sources: o.sources.map((s) => ({ title: s.title, url: s.url, snippet: s.snippet })),
+      sources: o.sources.map((s) => sourceWithMeta(s, "Port intelligence", result.generatedAt)),
     })) ?? [],
-    news: result.news.map((s) => ({ title: s.title, url: s.url, snippet: s.snippet })),
+    alerts: result.alerts.map((a) => ({ severity: a.severity, title: a.title, impact: a.impact })),
+    recommendations: result.recommendations.map((r) => ({
+      action: r.action,
+      rationale: r.rationale,
+    })),
+    actionPlan: result.actionPlan.map((a) => ({
+      action: a.action,
+      deadline: a.deadline,
+      dueDate: a.dueDate,
+      category: a.category,
+      urgency: a.urgency,
+      why: a.why,
+    })),
+    news: result.news.map((s) => sourceWithMeta(s, "News intelligence", result.generatedAt)),
     searches: result.searches.map((s) => ({
       agent: s.agent,
       query: s.query,
       results: s.results,
       mode: s.mode,
     })),
+    riskScore: result.riskScore,
+    expectedCostIncreasePct: result.expectedCostIncreasePct,
+    expectedDelayDays: result.expectedDelayDays,
     sources: collectSources(result),
     confidence: deriveConfidence(result),
     limitations: deriveLimitations(result),
+    openQuestions: deriveOpenQuestions(result),
     disclaimer:
       "This report is generated by Transitra, an AI-powered trade intelligence tool. "
       + "It is for decision-support purposes only and does not constitute legal, customs, tax, "
       + "or freight-booking advice. All figures are estimates based on available data and "
       + "public sources. Verify all information with qualified professionals before acting.",
+  };
+}
+
+function buildDriverSeriesForReport(
+  series: Array<{ t: string; v: number | null; f?: number | null }>,
+  current: number,
+  forecastPct: number,
+): Array<{ t: string; v: number | null; f?: number | null }> {
+  const mapped = series.map((p) => ({ t: p.t, v: p.v, f: p.f ?? null }));
+  const hasForecastPoints = mapped.some((p) => p.f !== null && p.f !== undefined);
+  if (hasForecastPoints || mapped.length === 0) return mapped;
+
+  const last = mapped[mapped.length - 1];
+  const base = last?.v ?? current;
+  if (last) last.f = base;
+  const target = current * (1 + forecastPct / 100);
+
+  return [
+    ...mapped,
+    ...[1, 2, 3].map((k) => ({
+      t: `+${k * 20}d`,
+      v: null,
+      f: roundDriverValue(base + (target - base) * (k / 3), current || base || 1),
+    })),
+  ];
+}
+
+function roundDriverValue(value: number, scale: number): number {
+  const magnitude = Math.abs(scale);
+  if (magnitude >= 1000) return Math.round(value);
+  if (magnitude >= 10) return Math.round(value * 10) / 10;
+  return Math.round(value * 100) / 100;
+}
+
+function sourceWithMeta(source: { title: string; url: string; snippet?: string }, category: string, retrievedAt: string): ReportSource {
+  return {
+    title: source.title,
+    url: source.url,
+    snippet: source.snippet,
+    category,
+    retrievedAt,
   };
 }
 
@@ -334,41 +372,42 @@ function extractAssumptions(result: AnalysisResult): string[] {
 function collectSources(result: AnalysisResult): ReportModel["sources"] {
   const seen = new Set<string>();
   const sources: ReportModel["sources"] = [];
-  const addSource = (source: { title: string; url: string; snippet?: string }): void => {
-    if (!source.url || seen.has(source.url)) return;
-    seen.add(source.url);
-    sources.push({ title: source.title, url: source.url, snippet: source.snippet });
+
+  const push = (s: { title: string; url: string; snippet?: string }, category: string) => {
+    if (!s.url || seen.has(s.url)) return;
+    seen.add(s.url);
+    sources.push(sourceWithMeta(s, category, result.generatedAt));
   };
 
+  for (const s of result.news) {
+    push(s, "News intelligence");
+  }
   for (const rf of result.riskFactors) {
     for (const s of rf.sources) {
-      addSource(s);
+      push(s, `${rf.category} risk`);
     }
   }
   if (result.tariff) {
     for (const s of result.tariff.sources) {
-      addSource(s);
+      push(s, "Tariff and customs");
     }
     for (const doc of result.tariff.documents) {
       if (doc.url) {
-        addSource({ title: `Document reference: ${doc.name}`, url: doc.url });
+        push({ title: `Document reference: ${doc.name}`, url: doc.url }, "Documentation");
       }
-    }
-  }
-  for (const driver of result.drivers) {
-    for (const s of driver.sources) {
-      addSource(s);
     }
   }
   if (result.portRecommendation) {
     for (const opt of result.portRecommendation.options) {
       for (const s of opt.sources) {
-        addSource(s);
+        push(s, "Port intelligence");
       }
     }
   }
-  for (const news of result.news) {
-    addSource(news);
+  for (const driver of result.drivers) {
+    for (const s of driver.sources) {
+      push(s, "Driver intelligence");
+    }
   }
   return sources;
 }
@@ -399,4 +438,24 @@ function deriveLimitations(result: AnalysisResult): string[] {
   }
   limitations.push("All estimates are based on publicly available data as of the retrieval timestamp");
   return limitations;
+}
+
+function deriveOpenQuestions(result: AnalysisResult): string[] {
+  const questions: string[] = [];
+  if (!result.input.pricePerKg) {
+    questions.push("Declared customs value or price per kg is still needed for a reliable duty and landed-cost estimate.");
+  }
+  if (!result.input.quantity) {
+    questions.push("Unit count is not available, so per-unit landed cost cannot be shown.");
+  }
+  if (!result.input.containerSize) {
+    questions.push("Container type or load plan should be confirmed before booking freight.");
+  }
+  if (!result.tariff?.hsCode) {
+    questions.push("HS classification needs human verification before customs or duty decisions.");
+  }
+  if (result.dataMode === "mock") {
+    questions.push("Replace mock data with live official-source retrieval before operational use.");
+  }
+  return questions;
 }
