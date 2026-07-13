@@ -391,6 +391,11 @@ function collectSources(result: AnalysisResult): ReportModel["sources"] {
     for (const s of result.tariff.sources) {
       push(s, "Tariff and customs");
     }
+    for (const doc of result.tariff.documents) {
+      if (doc.url) {
+        push({ title: `Document reference: ${doc.name}`, url: doc.url }, "Documentation");
+      }
+    }
   }
   if (result.portRecommendation) {
     for (const opt of result.portRecommendation.options) {

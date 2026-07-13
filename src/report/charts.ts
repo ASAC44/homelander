@@ -599,7 +599,7 @@ function describePortChoice(model: ReportModel): string {
   if (rec) {
     return `${rec.name} is recommended with a congestion score of ${rec.congestionScore}/100 and approximately ${rec.waitDays} day wait time.`;
   }
-  const best = ports.sort((a, b) => a.congestionScore - b.congestionScore)[0];
+  const best = [...ports].sort((a, b) => a.congestionScore - b.congestionScore)[0];
   return `${best.name} has the lowest congestion at ${best.congestionScore}/100.`;
 }
 

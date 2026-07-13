@@ -6,3 +6,4 @@ tmp/
 *.log
 package-lock.json
 data/
+output/

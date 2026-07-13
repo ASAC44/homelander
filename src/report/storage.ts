@@ -26,11 +26,16 @@ export interface SaveEvidenceResult {
 }
 
 export function slugify(text: string): string {
-  return text
+  const slug = text
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-|-$/g, "")
     .slice(0, 48);
+  return slug || "shipment";
+}
+
+function isEvidenceId(value: string): boolean {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
 }
 
 export async function initStorage(): Promise<void> {
@@ -88,6 +93,7 @@ export async function saveEvidence(text: string): Promise<SaveEvidenceResult> {
 export async function getEvidence(
   evidenceId: string,
 ): Promise<{ text: string; expiresAt: Date } | null> {
+  if (!isEvidenceId(evidenceId)) return null;
   const fileName = `${evidenceId}.txt`;
   const filePath = path.join(env.EVIDENCE_STORAGE_DIR, fileName);
   try {
