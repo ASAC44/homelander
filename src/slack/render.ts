@@ -10,7 +10,7 @@ export interface RenderOptions {
 
 export function renderBlocks(result: AnalysisResult, opts?: RenderOptions): string {
   const recommendedRoute = result.routes.find((r) => r.recommended) ?? result.routes[0] ?? null;
-  const topRisks = result.riskFactors
+  const topRisks = [...result.riskFactors]
     .sort((a, b) => b.score - a.score)
     .slice(0, 3);
 

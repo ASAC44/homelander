@@ -30,9 +30,12 @@ function constantTimeEq(a: string, b: string): boolean {
 export async function verifySlackRequest(
   body: string,
   headers: Record<string, string | string[]>,
+  signingSecret = env.SLACK_SIGNING_SECRET,
 ): Promise<boolean> {
-  const secret = env.SLACK_SIGNING_SECRET;
-  if (!secret) return false;
+  const secret = signingSecret;
+  // Local/demo mode: if no signing secret is configured, Slack verification is
+  // intentionally disabled. Production should always set SLACK_SIGNING_SECRET.
+  if (!secret) return true;
 
   const timestamp = typeof headers["x-slack-request-timestamp"] === "string"
     ? headers["x-slack-request-timestamp"]
@@ -49,7 +52,8 @@ export async function verifySlackRequest(
 
   // Reject requests older than 5 minutes to prevent replay attacks.
   const now = Math.floor(Date.now() / 1000);
-  if (Math.abs(now - parseInt(timestamp, 10)) > 300) return false;
+  const requestTs = Number.parseInt(timestamp, 10);
+  if (!Number.isFinite(requestTs) || Math.abs(now - requestTs) > 300) return false;
 
   const base = `v0:${timestamp}:${body}`;
   const expected = `v0=${await hmacSha256(secret, base)}`;

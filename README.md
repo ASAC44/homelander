@@ -25,6 +25,11 @@ npm run dev
 | `OPENAI_API_KEY` | No | — | Any OpenAI-compatible API key |
 | `OPENAI_MODEL` | No | gpt-4o-mini | Model name |
 | `OPENAI_BASE_URL` | No | — | Any OpenAI-compatible endpoint |
+| `OPENAI_MAX_CONCURRENCY` | No | 1 custom / 3 OpenAI | Maximum concurrent model requests |
+| `OPENAI_MAX_RETRIES` | No | 3 | Retry attempts for rate limits and transient provider errors |
+| `OPENAI_RETRY_BASE_MS` | No | 750 | Initial retry backoff in milliseconds |
+| `OPENAI_RETRY_MAX_MS` | No | 8000 | Maximum computed retry backoff in milliseconds |
+| `OPENAI_RATE_LIMIT_COOLDOWN_MS` | No | 60000 | Maximum delay honored for provider retry/cooldown signals |
 | `BRIGHTDATA_API_TOKEN` | No | — | Bright Data API token |
 | `BRIGHTDATA_PRO_MODE` | No | false | Bright Data pro mode |
 

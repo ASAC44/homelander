@@ -226,28 +226,19 @@ export function renderDependencyGraph(model: ReportModel): string {
     return "\\textbf{Insufficient data available} -- no dependency information.";
   }
 
-  const nodes: string[] = [];
-  const edges: string[] = [];
-  let nodeIdx = 0;
+  const rows = model.dependencyGraph.flatMap((dep) =>
+    dep.children.length
+      ? dep.children.map((child) => `${esc(dep.node)} & ${esc(child)} \\\\`)
+      : [`${esc(dep.node)} & No upstream dependencies identified \\\\`],
+  );
 
-  for (const dep of model.dependencyGraph) {
-    const parentId = `n${nodeIdx++}`;
-    nodes.push(`\\node[draw,rounded corners,fill=lightgray,inner sep=3pt] (${parentId}) {${esc(dep.node)}};`);
-    for (const child of dep.children) {
-      const childId = `n${nodeIdx++}`;
-      nodes.push(`\\node[draw,rounded corners,fill=lightgray,inner sep=3pt] (${childId}) {${esc(child)}};`);
-      edges.push(`\\draw[->,accentblue] (${parentId}) -- (${childId});`);
-    }
-  }
-
-  return `\\begin{tikzpicture}[
-  node distance=1.5cm and 2.5cm,
-  every node/.style={font=\\normalsize},
-  >=stealth,
-]
-${nodes.join("\n  ")}
-${edges.join("\n  ")}
-\\end{tikzpicture}
+  return `\\begin{tabularx}{\\textwidth}{>{\\raggedright\\arraybackslash}p{0.34\\textwidth}X}
+    \\toprule
+    \\rowcolor{warmpanel}\\textbf{Product category} & \\textbf{Cost and availability driver} \\\\
+    \\midrule
+    ${rows.join("\n    ")}
+    \\bottomrule
+  \\end{tabularx}
 
 \\vspace{0.5em}
 \\noindent\\textbf{Analysis:} ${esc(describeDependencies(model))}`;
@@ -292,6 +283,6 @@ function describePortChoice(model: ReportModel): string {
   if (rec) {
     return `${rec.name} is recommended with a congestion score of ${rec.congestionScore}/100 and approximately ${rec.waitDays} day wait time.`;
   }
-  const best = ports.sort((a, b) => a.congestionScore - b.congestionScore)[0];
+  const best = [...ports].sort((a, b) => a.congestionScore - b.congestionScore)[0];
   return `${best.name} has the lowest congestion at ${best.congestionScore}/100.`;
 }
