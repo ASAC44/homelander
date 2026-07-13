@@ -595,7 +595,7 @@ export async function synthesisAgent(
     costForecasts: result.costForecasts?.length === 3 ? result.costForecasts : fallback.costForecasts,
     expectedCostIncreasePct: result.expectedCostIncreasePct ?? fallback.expectedCostIncreasePct,
     expectedDelayDays: result.expectedDelayDays?.length === 2 ? result.expectedDelayDays : fallback.expectedDelayDays,
-    routes: result.routes?.length ? result.routes : fallback.routes,
+    routes: applyRequestedModeToRoutes(result.routes?.length ? result.routes : fallback.routes, input.shippingMode),
     alerts: result.alerts?.length ? result.alerts : fallback.alerts,
     recommendations: result.recommendations?.length ? result.recommendations : fallback.recommendations,
   };
@@ -726,16 +726,50 @@ function dedupeSources(sources: Source[]): Source[] {
   });
 }
 
+function routeMethodForMode(raw?: string): string | null {
+  const mode = normalizeMode(raw || "");
+  if (mode === "Ocean (container)") return "Ocean Freight";
+  if (mode === "Air") return "Air Freight";
+  if (mode === "Rail") return "Rail Freight";
+  if (mode === "Truck") return "Truck Freight";
+  return null;
+}
+
+function routeMethodKey(method: string): string {
+  const lower = method.toLowerCase();
+  if (/air/.test(lower)) return "Air Freight";
+  if (/rail|train/.test(lower)) return "Rail Freight";
+  if (/truck|road|lorry|ground/.test(lower)) return "Truck Freight";
+  if (/ocean|sea|container|vessel|ship/.test(lower)) return "Ocean Freight";
+  return method;
+}
+
+export function applyRequestedModeToRoutes(routes: RouteOption[], shippingMode?: string): RouteOption[] {
+  const requested = routeMethodForMode(shippingMode);
+  if (requested) {
+    let matched = false;
+    const normalized = routes.map((route) => {
+      const isMatch = routeMethodKey(route.method) === requested;
+      if (isMatch) matched = true;
+      return { ...route, recommended: isMatch };
+    });
+    if (matched) return normalized;
+  }
+
+  if (routes.some((route) => route.recommended)) return routes;
+  return routes.map((route, index) => ({ ...route, recommended: index === 0 }));
+}
+
 function defaultRoutes(input: ShipmentInput): RouteOption[] {
   const w = input.weightKg || 20000;
   const oceanCost = Math.round(2200 + w * 0.03);
   const airCost = Math.round(oceanCost * 11.5);
-  return [
+  return applyRequestedModeToRoutes([
     { method: "Ocean Freight", cost: oceanCost, transitDays: 22, recommended: true, note: "Most cost-effective for non-urgent cargo." },
     { method: "Air Freight", cost: airCost, transitDays: 3, recommended: false, note: "~12x cost; only worth it for time-critical goods." },
     { method: "Rail Freight", cost: Math.round(oceanCost * 1.7), transitDays: 18, recommended: false, note: "Where rail corridors exist; balances cost and speed." },
     { method: "Truck Freight", cost: Math.round(oceanCost * 2.4), transitDays: 12, recommended: false, note: "Regional/last-leg; limited for transoceanic." },
-  ];
+  ], input.shippingMode);
 }
 
 function clamp(n: number, lo = 0, hi = 100): number {

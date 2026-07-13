@@ -9,9 +9,11 @@ import {
   tariffAgent,
   intelAgent,
 } from "./agents.js";
+import { env } from "../config.js";
 import { brightDataMode, getSearchLog, resetSearchLog } from "./brightdata.js";
 import { buildDrivers } from "./drivers.js";
 import { geocode, haversineKm } from "./geo.js";
+import { buildMockAnalysis } from "./mock-analysis.js";
 import type {
   AnalysisResult,
   DependencyNode,
@@ -23,6 +25,7 @@ import type {
   TargetedDoubtKind,
   TargetedDoubtResult,
 } from "./types.js";
+import type { ProductProfile } from "./agents.js";
 
 const CATEGORY_WEIGHTS: Record<string, number> = {
   commodity: 1.0,
@@ -46,6 +49,11 @@ function weightedRiskScore(factors: RiskFactor[]): number {
 }
 
 export async function runAnalysis(input: ShipmentInput): Promise<AnalysisResult> {
+  if (env.HOMELANDER_MOCK_MODE) {
+    console.log(`[orchestrator] HOMELANDER_MOCK_MODE=true; using full mock analysis for ${input.product}`);
+    return buildMockAnalysis(input);
+  }
+
   console.log(`[orchestrator] Analyzing ${input.product} · ${input.origin} → ${input.destination}`);
   resetSearchLog();
 
@@ -206,11 +214,12 @@ export async function runTargetedDoubt(
   input: ShipmentInput,
   kind: TargetedDoubtKind,
   question: string,
+  opts?: { analysisContext?: AnalysisResult },
 ): Promise<TargetedDoubtResult> {
   console.log(`[orchestrator] Running targeted ${kind} doubt for ${input.product}`);
   resetSearchLog();
 
-  const profile = await productAgent(input);
+  const profile = opts?.analysisContext ? profileFromAnalysis(opts.analysisContext) : await productAgent(input);
   const context =
     `${input.product} (${profile.productCategory}), ${input.weightKg}kg, ` +
     `${input.origin} -> ${input.destination}, ship date ${input.shipDate}. ` +
@@ -272,6 +281,16 @@ export async function runTargetedDoubt(
     score: factor.score,
     sources: factor.sources,
   });
+}
+
+function profileFromAnalysis(result: AnalysisResult): ProductProfile {
+  return {
+    productCategory: result.productCategory,
+    hsCodes: result.hsCodes,
+    materials: result.materials,
+    dependencies: result.dependencyGraph.flatMap((node) => node.children),
+    sources: result.news,
+  };
 }
 
 function buildTargetedResult(

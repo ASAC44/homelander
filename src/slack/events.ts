@@ -3,10 +3,12 @@ import { WebClient } from "@slack/web-api";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { intake } from "../lib/agents.js";
-import { runAnalysis } from "../lib/orchestrator.js";
+import { waitForMockLoopMinimum } from "../lib/mock-mode.js";
+import { runAnalysis, runTargetedDoubt } from "../lib/orchestrator.js";
 import { answerTradeQuestion } from "../lib/qa.js";
+import { classifyTargetedDoubt } from "../lib/targeted.js";
 import type { AnalysisResult, ShipmentInput } from "../lib/types.js";
-import { renderBlocks } from "./render.js";
+import { renderBlocks, renderTargetedDoubt } from "./render.js";
 import { routeMessage } from "./router.js";
 import { buildReportModel } from "../report/model.js";
 import { renderEvidence } from "../report/evidence.js";
@@ -30,6 +32,13 @@ interface LastReportUrls {
   reportUrl?: string | null;
   pdfReportUrl?: string | null;
   evidenceUrl?: string | null;
+}
+
+interface SlackReportFile {
+  filePath: string;
+  fileName: string;
+  title: string;
+  filetype: string;
 }
 
 interface ThreadConversationState {
@@ -138,6 +147,28 @@ function setCompletedShipment(key: string, input: ShipmentInput): void {
       if (now - state.updatedAt > COMPLETED_SHIPMENT_TTL_MS) completedShipments.delete(id);
     }
   }
+}
+
+async function uploadReportFiles(
+  client: WebClient,
+  channel: string,
+  threadTs: string,
+  initialComment: string,
+  files: SlackReportFile[],
+): Promise<void> {
+  if (!files.length) return;
+
+  await client.filesUploadV2({
+    channel_id: channel,
+    thread_ts: threadTs,
+    initial_comment: initialComment,
+    file_uploads: files.map((file) => ({
+      file: file.filePath,
+      filename: file.fileName,
+      title: file.title,
+      filetype: file.filetype,
+    })),
+  });
 }
 
 export interface SlackEventPayload {
@@ -250,16 +281,27 @@ export async function handleEvent(
 
   if (route.route === "question") {
     try {
-      const answer = threadState?.completed && isLikelyReportFollowUp(cleanText) && !isLikelyShipmentChange(cleanText)
-        ? await answerReportFollowUp(cleanText, threadState.completed)
-        : await answerTradeQuestion({
-            question: cleanText,
-            inputContext: threadState?.lastAnalysis?.input
-              ?? threadState?.completed?.analysisResult.input
-              ?? threadState?.input
-              ?? getCompletedShipment(stateKey),
-            analysisContext: threadState?.lastAnalysis ?? threadState?.completed?.analysisResult,
-          });
+      const analysisContext = threadState?.lastAnalysis ?? threadState?.completed?.analysisResult;
+      const shipmentChange = isLikelyShipmentChange(cleanText);
+      const targetedRoute = !shipmentChange && analysisContext
+        ? classifyTargetedDoubt(cleanText)
+        : { type: "unknown" as const };
+      const answer = targetedRoute.type === "targeted_doubt" && analysisContext
+        ? renderTargetedDoubt(await runTargetedDoubt(
+            analysisContext.input,
+            targetedRoute.kind,
+            cleanText,
+            { analysisContext },
+          ))
+        : threadState?.completed && isLikelyReportFollowUp(cleanText) && !shipmentChange
+          ? await answerReportFollowUp(cleanText, threadState.completed)
+          : await answerTradeQuestion({
+              question: cleanText,
+              inputContext: analysisContext?.input
+                ?? threadState?.input
+                ?? getCompletedShipment(stateKey),
+              analysisContext,
+            });
       await bot.chat.postMessage({
         channel,
         thread_ts: threadTs,
@@ -319,6 +361,7 @@ export async function handleEvent(
     text: "Running the analysis...",
   });
 
+  const mockLoopStartedAtMs = Date.now();
   let analysisResult;
   try {
     analysisResult = await runAnalysis(parsed.input);
@@ -349,6 +392,8 @@ export async function handleEvent(
   let evidenceResult = null;
   let reportUrl: string | null = null;
   let pdfReportUrl: string | null = null;
+  let htmlReportFile: SlackReportFile | null = null;
+  let pdfReportFile: SlackReportFile | null = null;
   const evidenceBaseUrl = opts?.publicBaseUrl || env.PUBLIC_BASE_URL;
   const evidenceUrl = evidenceBaseUrl
     ? `${evidenceBaseUrl.replace(/\/$/, "")}/evidence/`
@@ -373,6 +418,12 @@ export async function handleEvent(
       reportModel.reportId,
       reportModel.version,
     );
+    htmlReportFile = {
+      filePath: saved.filePath,
+      fileName: saved.fileName,
+      title: "Interactive HTML report",
+      filetype: "html",
+    };
     if (evidenceBaseUrl) {
       reportUrl = `${evidenceBaseUrl.replace(/\/$/, "")}/reports/${saved.slug}/${saved.fileName}`;
     }
@@ -385,6 +436,14 @@ export async function handleEvent(
       const compiled = await compileLatexReport(texPath, outputDir);
       if (compiled.success && evidenceBaseUrl) {
         pdfReportUrl = `${evidenceBaseUrl.replace(/\/$/, "")}/reports/${saved.slug}/report-${reportModel.reportId}.pdf`;
+      }
+      if (compiled.success) {
+        pdfReportFile = {
+          filePath: compiled.pdfPath,
+          fileName: path.basename(compiled.pdfPath),
+          title: "Formal PDF report",
+          filetype: "pdf",
+        };
       }
       if (!compiled.success) {
         console.warn("[slack] PDF report compilation failed:", compiled.error);
@@ -401,12 +460,6 @@ export async function handleEvent(
   }
 
   // Post summary
-  const blocks = renderBlocks(analysisResult, {
-    reportUrl,
-    pdfReportUrl,
-    evidence: evidenceResult,
-    evidenceUrl: evidenceLink,
-  });
   setCompletedReportState(stateKey, {
     analysisResult,
     reportUrl,
@@ -418,14 +471,64 @@ export async function handleEvent(
     evidenceUrl: evidenceLink,
   });
 
+  const reportFiles = [htmlReportFile, pdfReportFile].filter((file): file is SlackReportFile => file !== null);
+  const hasHtmlAndPdf = Boolean(htmlReportFile && pdfReportFile);
+  const missingGenerationNote = [
+    !htmlReportFile ? "Interactive HTML generation failed." : null,
+    !pdfReportFile ? "PDF generation failed." : null,
+  ].filter((note): note is string => note !== null).join(" ");
+  const attachedReportNote = hasHtmlAndPdf
+    ? "*Attached files:* Interactive HTML report and formal PDF report."
+    : reportFiles.length
+      ? `*Attached files:* ${reportFiles.map((file) => file.title).join(", ")}. ${missingGenerationNote}`.trim()
+      : null;
+  const fallbackReportNote = reportFiles.length
+    ? hasHtmlAndPdf
+      ? "*Report upload:* The HTML and PDF reports were generated locally, but Slack file upload failed. Use the links above if configured."
+      : `*Report upload:* ${missingGenerationNote} Slack file upload also failed. Use the links above if configured.`
+    : "*Report upload:* No report files were available to upload.";
+  const attachedSummary = renderBlocks(analysisResult, {
+    reportUrl,
+    pdfReportUrl,
+    evidence: evidenceResult,
+    evidenceUrl: evidenceLink,
+    reportDeliveryNote: attachedReportNote,
+  });
+  const fallbackSummary = renderBlocks(analysisResult, {
+    reportUrl,
+    pdfReportUrl,
+    evidence: evidenceResult,
+    evidenceUrl: evidenceLink,
+    reportDeliveryNote: fallbackReportNote,
+  });
+
   try {
-    await bot.chat.postMessage({
-      channel,
-      thread_ts: threadTs,
-      text: blocks,
-      unfurl_links: false,
-      unfurl_media: false,
-    });
+    await waitForMockLoopMinimum(mockLoopStartedAtMs);
+    if (reportFiles.length) {
+      try {
+        await uploadReportFiles(bot, channel, threadTs, attachedSummary, reportFiles);
+      } catch (err) {
+        console.error("[slack] Failed to upload report files:", {
+          files: reportFiles.map((file) => file.filePath),
+          error: err,
+        });
+        await bot.chat.postMessage({
+          channel,
+          thread_ts: threadTs,
+          text: fallbackSummary,
+          unfurl_links: false,
+          unfurl_media: false,
+        });
+      }
+    } else {
+      await bot.chat.postMessage({
+        channel,
+        thread_ts: threadTs,
+        text: fallbackSummary,
+        unfurl_links: false,
+        unfurl_media: false,
+      });
+    }
   } catch (err) {
     console.error("[slack] Failed to post summary:", err);
   }

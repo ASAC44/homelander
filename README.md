@@ -12,9 +12,25 @@ International shipping decisions are rarely difficult because information does n
 
 Homelander brings those pieces together in the place teams already work: Slack. It helps answer questions like:
 
-> What is the best way to move 10,000 metal office chairs from Shenzhen to Los Angeles in September, and what could make that decision go wrong?
+| Variable | Required | Default | Description |
+|---|---|---|---|
+| `PORT` | No | 3000 | HTTP server port |
+| `HOMELANDER_MOCK_MODE` | No | false | Force the analysis/report loop to use complete synthetic mock data, even when API keys are configured |
+| `HOMELANDER_MOCK_MIN_DURATION_MS` | No | 60000 | Minimum elapsed time for forced mock analysis/report responses |
+| `SLACK_BOT_TOKEN` | No | — | Slack bot token |
+| `SLACK_SIGNING_SECRET` | No | — | Slack signing secret |
+| `OPENAI_API_KEY` | No | — | Any OpenAI-compatible API key |
+| `OPENAI_MODEL` | No | gpt-4o-mini | Model name |
+| `OPENAI_BASE_URL` | No | — | Any OpenAI-compatible endpoint |
+| `OPENAI_MAX_CONCURRENCY` | No | 1 custom / 3 OpenAI | Maximum concurrent model requests |
+| `OPENAI_MAX_RETRIES` | No | 3 | Retry attempts for rate limits and transient provider errors |
+| `OPENAI_RETRY_BASE_MS` | No | 750 | Initial retry backoff in milliseconds |
+| `OPENAI_RETRY_MAX_MS` | No | 8000 | Maximum computed retry backoff in milliseconds |
+| `OPENAI_RATE_LIMIT_COOLDOWN_MS` | No | 60000 | Maximum delay honored for provider retry/cooldown signals |
+| `BRIGHTDATA_API_TOKEN` | No | — | Bright Data API token |
+| `BRIGHTDATA_PRO_MODE` | No | false | Bright Data pro mode |
 
-## What Homelander delivers
+Without API keys, the app falls back to offline heuristic/mock data where providers are unavailable. Set `HOMELANDER_MOCK_MODE=true` to force the full analysis/report loop into mock mode regardless of configured API keys.
 
 - A simple Slack conversation instead of a complex form.
 - Clarifying questions when shipment details are missing.
@@ -91,7 +107,9 @@ To connect Slack, create an app, subscribe it to direct messages and `app_mentio
 
 Homelander is an MVP and hackathon prototype. The core analysis flow, Slack interaction, research modules, calculation logic, evidence artifacts, and report generation are implemented in this repository.
 
-The most important next steps are stronger source validation, broader official trade data coverage, production storage, and more end-to-end testing with real Slack interactions.
+- **LIVE** — Real web searches + LLM analysis (requires API keys)
+- **MOCK fallback** — Heuristic fallbacks, realistic but not current (no API keys needed)
+- **Forced mock loop** — `HOMELANDER_MOCK_MODE=true` bypasses live providers for shipment analysis and returns a complete synthetic report with mock evidence/source labels. Slack intake still collects shipment details, then the final summary waits until at least `HOMELANDER_MOCK_MIN_DURATION_MS` has elapsed so demos do not complete instantly.
 
 ## License
 

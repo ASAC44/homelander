@@ -14,6 +14,13 @@ test("routes duty-estimate questions to direct Q&A with prior context", async ()
   assert.equal(decision.route, "question");
 });
 
+test("routes focused doubt prompts to direct Q&A before full analysis", async () => {
+  const decision = await routeMessage("assess tariff exposure for this shipment", {
+    hasLastAnalysis: true,
+  });
+  assert.equal(decision.route, "question");
+});
+
 test("routes explicit shipment analysis requests to intake", async () => {
   const decision = await routeMessage("analyze 10,000kg cotton shirts from India to New York by September");
   assert.equal(decision.route, "analysis_request");
