@@ -111,13 +111,26 @@ export async function getSavedReport(
   slug: string,
   fileName: string,
 ): Promise<string | null> {
+  const result = await getSavedReportFile(slug, fileName);
+  if (!result || result.contentType !== "text/html; charset=utf-8") return null;
+  return result.body.toString("utf-8");
+}
+
+export async function getSavedReportFile(
+  slug: string,
+  fileName: string,
+): Promise<{ body: Buffer; contentType: string } | null> {
   const safeSlug = slugify(slug);
-  if (safeSlug !== slug || !/^report-[a-f0-9-]+\.html$/.test(fileName)) {
+  if (safeSlug !== slug || !/^report-[a-f0-9-]+\.(html|pdf)$/.test(fileName)) {
     return null;
   }
   const filePath = path.join(env.REPORT_STORAGE_DIR, safeSlug, fileName);
   try {
-    return await fs.readFile(filePath, "utf-8");
+    const body = await fs.readFile(filePath);
+    const contentType = fileName.endsWith(".pdf")
+      ? "application/pdf"
+      : "text/html; charset=utf-8";
+    return { body, contentType };
   } catch {
     return null;
   }

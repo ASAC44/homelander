@@ -20,6 +20,21 @@ export interface IntakeResult {
   ready: boolean;
 }
 
+export type TargetedDoubtKind =
+  | "tariff"
+  | "port"
+  | "freight"
+  | "weather"
+  | "commodity"
+  | "supplier"
+  | "regulatory"
+  | "geopolitical";
+
+export type TargetedDoubtRoute =
+  | { type: "targeted_doubt"; kind: TargetedDoubtKind }
+  | { type: "full_analysis" }
+  | { type: "unknown" };
+
 export type RiskCategory =
   | "commodity"
   | "freight"
@@ -195,6 +210,20 @@ export interface AnalysisResult {
   geo: RouteGeo | null;
   tariff: TariffInfo | null;
   portRecommendation: PortRecommendation | null;
+  searches: SearchRecord[];
+  generatedAt: string;
+  dataMode: "live" | "mock";
+}
+
+export interface TargetedDoubtResult {
+  input: ShipmentInput;
+  kind: TargetedDoubtKind;
+  agentName: string;
+  headline: string;
+  detail: string;
+  actionable: string;
+  score: number | null;
+  sources: Source[];
   searches: SearchRecord[];
   generatedAt: string;
   dataMode: "live" | "mock";

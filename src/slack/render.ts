@@ -1,8 +1,9 @@
-import type { AnalysisResult } from "../lib/types.js";
+import type { AnalysisResult, TargetedDoubtResult } from "../lib/types.js";
 import type { SaveEvidenceResult } from "../report/storage.js";
 
 export interface RenderOptions {
   reportUrl?: string | null;
+  pdfReportUrl?: string | null;
   evidence?: SaveEvidenceResult | null;
   evidenceUrl?: string | null;
 }
@@ -37,6 +38,10 @@ export function renderBlocks(result: AnalysisResult, opts?: RenderOptions): stri
     lines.push(`*Full report:* <${opts.reportUrl}|Open interactive report>`);
   }
 
+  if (opts?.pdfReportUrl) {
+    lines.push(`*Formal PDF report:* <${opts.pdfReportUrl}|Open memo PDF>`);
+  }
+
   // Evidence reference
   if (opts?.evidence) {
     if (opts.evidenceUrl) {
@@ -50,6 +55,31 @@ export function renderBlocks(result: AnalysisResult, opts?: RenderOptions): stri
     "",
     "_This is decision-support, not legal/customs/tax/freight-booking advice._",
   );
+
+  return lines.filter(Boolean).join("\n");
+}
+
+export function renderTargetedDoubt(result: TargetedDoubtResult): string {
+  const sourceLines = result.sources.slice(0, 3).map((source) => `• <${source.url}|${source.title}>`);
+  const searchNote = result.searches.some((s) => s.agent === "Product & Material Agent")
+    ? `${result.searches.length} including product prep`
+    : String(result.searches.length);
+
+  const lines = [
+    `*${result.agentName}: ${result.input.product}*`,
+    "",
+    `*Answer:* ${result.headline}`,
+    result.score === null ? "" : `*Risk score:* ${result.score}/100`,
+    `*What it means:* ${result.detail}`,
+    `*Action:* ${result.actionable}`,
+    "",
+    sourceLines.length ? "*Top sources checked:*" : "",
+    ...sourceLines,
+    "",
+    `*Searches checked:* ${searchNote}. Data mode: ${result.dataMode === "live" ? "LIVE" : "MOCK"}.`,
+    "",
+    "_This is decision-support, not legal/customs/tax/freight-booking advice._",
+  ];
 
   return lines.filter(Boolean).join("\n");
 }
